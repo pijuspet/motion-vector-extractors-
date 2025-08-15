@@ -4,7 +4,7 @@ set -e
 build() {
   echo "Building all extractors and tools..."
   make
-  gcc -O2 -o benchmark_all_9 benchmarking.c \
+  g++ -O2 -o benchmark_all_9 benchmarking.cpp \
     `pkg-config --cflags --libs libavformat libavcodec libavutil libswscale` -lm
   gcc -O2 -o combine_mv_csv combine_mv_csv.c
   gcc -O2 -o complete_video_generator_9 vidgenerator.c \
