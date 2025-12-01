@@ -15,7 +15,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 
-constexpr int N_METHODS = 9;
+constexpr int N_METHODS = 5;
 
 struct MethodInfo {
     std::string name;
@@ -41,12 +41,12 @@ std::array<MethodInfo, N_METHODS> methods = {{
     {"FFMPEG decode frames", "./extractor6", "method6_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
     {"FFmpeg MV", "./extractor0", "method0_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
     {"Same Code Not Patched", "./extractor1", "method1_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"Optimized MV-Only - FFMPEG Patched", "./extractor2", "method2_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
-    {"Custom H.264 Parser", "./extractor3", "method3_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"LIVE555 Parser", "./extractor4", "method4_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    //{"Optimized MV-Only - FFMPEG Patched", "./extractor2", "method2_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
+    //{"Custom H.264 Parser", "./extractor3", "method3_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    //{"LIVE555 Parser", "./extractor4", "method4_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
     {"Python mv-extractor", "./extractor5", "method5_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
     {"FFMPEG Patched - Minimal", "./extractor7", "method7_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
-    {"FFMPEG Patched!", "./extractor8", "method8_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"}
+    //{"FFMPEG Patched!", "./extractor8", "method8_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"}
 }};
 
 double now_ms() {

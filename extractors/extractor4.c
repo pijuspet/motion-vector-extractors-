@@ -48,7 +48,7 @@ int main(int argc, char **argv){
                     int mb_x = (i % 40), mb_y = (i % 30);
                     int mv_x = (d[i+4] % 16) - 8;
                     int mv_y = (d[i+5] % 16) - 8;
-                    //printf("%d,4,%d,%d,%d,%d\n", frame, mb_x, mb_y, mv_x, mv_y);
+                    printf("%d,4,%d,%d,%d,%d\n", frame, mb_x, mb_y, mv_x, mv_y);
                 }
             }
 

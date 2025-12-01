@@ -29,7 +29,7 @@ int main(int argc, char **argv){
                     int mb_x=0,mb_y=0;
                     for(int i=0;i<100&&br.bitpos<br.size*8;i++){
                         int32_t mvd_x=br_read_se(&br),mvd_y=br_read_se(&br);  
-                        //printf("%d,3,%d,%d,%d,%d\n",frame,mb_x,mb_y,mvd_x,mvd_y);
+                        printf("%d,3,%d,%d,%d,%d\n",frame,mb_x,mb_y,mvd_x,mvd_y);
                         mb_x++; if(mb_x>=120){mb_x=0;mb_y++;}
                     }
                 }

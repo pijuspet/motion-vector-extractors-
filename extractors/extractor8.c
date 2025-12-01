@@ -62,13 +62,13 @@ int main(int argc, char** argv) {
             avcodec_send_packet(codec_ctx, pkt);
             while (avcodec_receive_frame(codec_ctx, frame) == 0) {
                 AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-                /*if (sd) {
+                if (sd) {
                     const AVMotionVector* mvs = (const AVMotionVector*)sd->data;
                     int nb_mvs = sd->size / sizeof(AVMotionVector);
                     for (int i = 0; i < nb_mvs; ++i) {
                         print_mv(&mvs[i], frame_idx);
                     }
-                }*/
+                }
                 av_frame_unref(frame);
                 frame_idx++;
             }

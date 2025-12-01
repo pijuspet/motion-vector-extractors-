@@ -65,9 +65,8 @@ int main(int argc, char** argv) {
     }
 
     // Enable multi-threaded decoding
-    codec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
-    codec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
-    av_opt_set_int(codec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
+    codec_ctx->thread_count = 1; // 0 lets ffmpeg decide based on CPU cores
+    codec_ctx->export_side_data |= AV_CODEC_EXPORT_DATA_MVS;
 
     if (avcodec_open2(codec_ctx, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec.\n");
@@ -111,7 +110,7 @@ int main(int argc, char** argv) {
                     int nb_mvs = sd->size / sizeof(AVMotionVector);
                     for (int i = 0; i < nb_mvs; ++i) {
                         i=i;
-                        //print_mv(&mvs[i], frame_idx, out);
+                        print_mv(&mvs[i], frame_idx, out);
                     }
                 }
 
@@ -131,7 +130,7 @@ int main(int argc, char** argv) {
             int nb_mvs = sd->size / sizeof(AVMotionVector);
             for (int i = 0; i < nb_mvs; ++i) {
                 i=i;
-                //print_mv(&mvs[i], frame_idx, out);
+                print_mv(&mvs[i], frame_idx, out);
             }
         }
         av_frame_unref(frame);

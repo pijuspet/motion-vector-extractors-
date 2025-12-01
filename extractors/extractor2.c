@@ -80,12 +80,12 @@ int main(int argc, char **argv) {
                     int n = sd->size / sizeof(*mvs);
                     for (int i = 0; i < n; i++) {
                         const AVMotionVector *mv = &mvs[i];
-                        /*printf("%d,2,%d,%d,%d,%d,%d,%d,%d,0x%" PRIx64 ",%d,%d,%d\n",
+                        printf("%d,2,%d,%d,%d,%d,%d,%d,%d,0x%" PRIx64 ",%d,%d,%d\n",
                             frame_count, mv->source, mv->w, mv->h,
                             mv->src_x, mv->src_y,
                             mv->dst_x, mv->dst_y,
                             (uint64_t)mv->flags,
-                            mv->motion_x, mv->motion_y, mv->motion_scale);*/
+                            mv->motion_x, mv->motion_y, mv->motion_scale);
                     }
                 }
                 frame_count++;

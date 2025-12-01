@@ -7,7 +7,7 @@
 #include <libavutil/opt.h>
 
 void print_mv(const AVMotionVector* mv, int frame_idx, FILE* out) {
-    fprintf(out, "%d,2,%d,%d,%d,%d,%d,%d,%d,0x%" PRIx64 ",%d,%d,%d\n",
+    fprintf(out, "%d,7,%d,%d,%d,%d,%d,%d,%d,0x%" PRIx64 ",%d,%d,%d\n",
            frame_idx,
            mv->source,
            mv->w, mv->h,
@@ -18,10 +18,12 @@ void print_mv(const AVMotionVector* mv, int frame_idx, FILE* out) {
 }
 
 int main(int argc, char** argv) {
+    int do_print = 1;
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <input>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input> [print]\n", argv[0]);
         return -1;
     }
+    if (argc >= 3) do_print = atoi(argv[2]);
 
     avformat_network_init();
 
@@ -64,10 +66,10 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // Enable multi-threaded decoding
-    codec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
-    codec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
-    av_opt_set_int(codec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
+    // Optimized settings for motion vector extraction
+    codec_ctx->thread_count = 1; // Let FFmpeg decide optimal threading
+    codec_ctx->export_side_data |= AV_CODEC_EXPORT_DATA_MVS; // Standard MV export
+    av_opt_set_int(codec_ctx, "motion_vectors_only", 1, 0);  
 
     if (avcodec_open2(codec_ctx, codec, NULL) < 0) {
         fprintf(stderr, "Could not open codec.\n");
@@ -82,10 +84,10 @@ int main(int argc, char** argv) {
     }
 
     int frame_idx = 0;
-    // Buffer output to a file (stdout could be slow)
     FILE* out = stdout;
 
-    fprintf(out, "frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");
+    if (do_print)
+        fprintf(out, "frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");
 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_index) {
@@ -105,13 +107,13 @@ int main(int argc, char** argv) {
                     break;
                 }
 
+                // Extract motion vectors from side data
                 AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-                if (sd) {
+                if (sd && do_print) {
                     const AVMotionVector* mvs = (const AVMotionVector*)sd->data;
                     int nb_mvs = sd->size / sizeof(AVMotionVector);
                     for (int i = 0; i < nb_mvs; ++i) {
-                        i=i;
-                        //print_mv(&mvs[i], frame_idx, out);
+                        print_mv(&mvs[i], frame_idx, out);
                     }
                 }
 
@@ -126,12 +128,11 @@ int main(int argc, char** argv) {
     avcodec_send_packet(codec_ctx, NULL);
     while (avcodec_receive_frame(codec_ctx, frame) == 0) {
         AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-        if (sd) {
+        if (sd && do_print) {
             const AVMotionVector* mvs = (const AVMotionVector*)sd->data;
             int nb_mvs = sd->size / sizeof(AVMotionVector);
             for (int i = 0; i < nb_mvs; ++i) {
-                i=i;
-                //print_mv(&mvs[i], frame_idx, out);
+                print_mv(&mvs[i], frame_idx, out);
             }
         }
         av_frame_unref(frame);
@@ -145,4 +146,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

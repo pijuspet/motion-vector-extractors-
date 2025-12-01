@@ -1,3 +1,40 @@
+def highlight_table(df):
+    # Robust column matching: map expected keys to actual columns (case-insensitive, ignore minor differences)
+    def find_col(possibles):
+        for p in possibles:
+            for c in df.columns:
+                if c.strip().lower().replace(' ', '').replace('_', '') == p:
+                    return c
+        return None
+
+    col_time = find_col(['time/frame(ms)', 'timeperframe(ms)', 'time/frame', 'timeperframe'])
+    col_cpu = find_col(['cpu(%)', 'cpu'])
+    col_mem = find_col(['memΔkb', 'memdelta', 'mem', 'memory'])
+    col_fps = find_col(['fps'])
+
+    styles = pd.DataFrame('', index=df.index, columns=df.columns)
+    if col_time:
+        min_time = df[col_time].min()
+        styles.loc[df[col_time] == min_time, col_time] = 'background-color: #c6efce; color: black'
+    if col_cpu:
+        min_cpu = df[col_cpu].min()
+        styles.loc[df[col_cpu] == min_cpu, col_cpu] = 'background-color: #c6efce; color: black'
+    if col_mem and col_mem in df.columns:
+        min_mem = df[col_mem].min()
+        styles.loc[df[col_mem] == min_mem, col_mem] = 'background-color: #c6efce; color: black'
+    if col_fps:
+        max_fps = df[col_fps].max()
+        styles.loc[df[col_fps] == max_fps, col_fps] = 'background-color: #c6efce; color: black'
+
+    return df.style.apply(lambda _: styles, axis=None)
+
+def save_highlighted_table_as_png(df, filename):
+    styled = highlight_table(df)
+    html_file = filename.replace('.png', '.html')
+    styled.to_html(html_file)
+    import imgkit
+    imgkit.from_file(html_file, filename)
+    print(f"Saved highlighted table as {filename}")
 import subprocess
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,71 +45,53 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 
-# --- Output folder ---
-PLOTS_FOLDER = "plots"
-os.makedirs(PLOTS_FOLDER, exist_ok=True)
 
-def pretty_table(df, title, filename, col_width=2.8, row_height=0.8):
+def get_plots_folder(folder):
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+def pretty_table(df, title, filename, plots_folder, col_width=2.8, row_height=0.8):
     import matplotlib.pyplot as plt
     import numpy as np
 
     n_rows, n_cols = df.shape
-    fig_width = col_width * n_cols
-    fig_height = row_height * (n_rows + 1)  # +1 for header row
-
-    plt.figure(figsize=(fig_width, fig_height))
-    plt.axis('off')
-
-    # Create the table
-    tbl = plt.table(
-        cellText=df.values,
-        colLabels=df.columns,
+    fig, ax = plt.subplots(figsize=(col_width * n_cols, row_height * (n_rows + 1)))
+    ax.axis('off')
+    tbl = ax.table(
+        cellText=df.values.tolist(),
+        colLabels=list(df.columns),
         loc='center',
-        cellLoc='left',
-        colLoc='left',
-        edges='open',
-        bbox=[0, 0, 1, 1]
+        cellLoc='center',   # Use 'center' for better default look
+        colLoc='center',    # Use 'center' for better default look
+        edges='open'
     )
-
     tbl.auto_set_font_size(False)
-    tbl.set_fontsize(14)
+    tbl.set_fontsize(12)   # More compact font
 
-    # Style header row (row 0)
+    # header styling (lighter background, bold, slightly larger font)
     for j in range(n_cols):
-        cell = tbl[(0, j)]
-        cell.set_text_props(weight='bold', color='white')
-        cell.set_facecolor('#2E4053')  # deep blue for header
-        cell.PAD = 0.12
+        tbl[(0, j)].set_text_props(weight='bold', fontsize=15)
+        tbl[(0, j)].set_facecolor('#f5f5f5')
 
-    # Adjust first column cells: increase padding to reduce overlap
-    first_col_width_adjustment = 0.18
-
-    # Style data rows and specifically adjust first column
+    # Data row styling: alternating row color, center text
     for i in range(1, n_rows + 1):
         for j in range(n_cols):
             cell = tbl[(i, j)]
-            # Alternating row color
-            cell.set_facecolor('#F2F4F4' if i % 2 == 0 else 'white')
-            cell.set_text_props(color='black', weight='normal')
-            # Increase padding for first column to reduce overlap
-            if j == 0:
-                cell.PAD = 0.18
-            else:
-                cell.PAD = 0.12
+            cell.set_facecolor('#fafafa' if i % 2 == 0 else 'white')
+            cell.set_text_props(color='black', weight='normal', fontsize=12)
+            cell.PAD = 0.12
 
-    plt.title(title, fontsize=20, pad=16, loc='left')
-
-    # Try to auto adjust columns (especially widen first column)
     tbl.auto_set_column_width(col=list(range(n_cols)))
+    fig.tight_layout(pad=0.5)
 
-    outpath = os.path.join(PLOTS_FOLDER, filename)
-    plt.savefig(outpath, bbox_inches='tight', dpi=200)
-    plt.close()
+    outpath = os.path.join(plots_folder, filename)
+    fig.savefig(outpath, dpi=200)
+    plt.close(fig)
     print(f"Saved pretty table image: {outpath}")
     return filename
 
 
-def plot_grouped_bar(df, metric, title, ylabel, filename, palette="tab20"):
+def plot_grouped_bar(df, metric, title, ylabel, filename, plots_folder, palette="tab20"):
     plt.figure(figsize=(16, 9))
     sns.barplot(data=df, x="streams", y=metric, hue="method",
                 palette=palette, edgecolor="black")
@@ -81,12 +100,12 @@ def plot_grouped_bar(df, metric, title, ylabel, filename, palette="tab20"):
     plt.ylabel(ylabel, fontsize=14)
     plt.legend(title="Method", loc="best", fontsize=12)
     plt.tight_layout()
-    save_path = os.path.join(PLOTS_FOLDER, filename)
+    save_path = os.path.join(plots_folder, filename)
     plt.savefig(save_path)
     plt.close()
     print(f"Saved grouped bar chart: {save_path}")
 
-def plot_metric(df, metric, title, ylabel, filename, palette="viridis"):
+def plot_metric(df, metric, title, ylabel, filename, plots_folder, palette="viridis"):
     plt.figure(figsize=(16, 9))
     sns.barplot(data=df, x="method", y=metric, hue="method", palette=palette, legend=False)
     plt.title(title, fontsize=20, loc='left')
@@ -95,12 +114,12 @@ def plot_metric(df, metric, title, ylabel, filename, palette="viridis"):
     plt.xticks(rotation=30, ha='right', fontsize=12)
     plt.yticks(fontsize=12)
     plt.tight_layout()
-    save_path = os.path.join(PLOTS_FOLDER, filename)
+    save_path = os.path.join(plots_folder, filename)
     plt.savefig(save_path)
     plt.close()
     print(f"Saved plot: {save_path}")
 
-def plot_scaling(df, metric, title, ylabel, filename, legend_loc="best"):
+def plot_scaling(df, metric, title, ylabel, filename, plots_folder, legend_loc="best"):
     plt.figure(figsize=(16, 9))
     sns.lineplot(data=df, x="streams", y=metric, hue="method", marker="o")
     plt.title(title, fontsize=20, loc='left')
@@ -108,20 +127,20 @@ def plot_scaling(df, metric, title, ylabel, filename, legend_loc="best"):
     plt.ylabel(ylabel, fontsize=14)
     plt.legend(title="Method", loc=legend_loc, fontsize=12)
     plt.tight_layout()
-    save_path = os.path.join(PLOTS_FOLDER, filename)
+    save_path = os.path.join(plots_folder, filename)
     plt.savefig(save_path)
     plt.close()
     print(f"Saved plot: {save_path}")
 
-def blank_image(filename):
+def blank_image(filename, plots_folder):
     plt.figure(figsize=(10, 2))
     plt.axis("off")
-    outpath = os.path.join(PLOTS_FOLDER, filename)
+    outpath = os.path.join(plots_folder, filename)
     plt.savefig(outpath, bbox_inches='tight', dpi=100)
     plt.close()
     return filename
 
-def save_to_ppt(slides, ppt_filename):
+def save_to_ppt(slides, ppt_filename, plots_folder):
     prs = Presentation()
     prs.slide_width = Inches(13.33)
     prs.slide_height = Inches(7.5)
@@ -156,14 +175,14 @@ def save_to_ppt(slides, ppt_filename):
             tf.paragraphs[0].font.size = Pt(18)
             tf.paragraphs[0].alignment = PP_ALIGN.LEFT
 
-        img_path = os.path.join(PLOTS_FOLDER, slide_data['filename'])
+        img_path = os.path.join(plots_folder, slide_data['filename'])
         if os.path.isfile(img_path):
             left_img = Inches(0.5)
             top_img = Inches(1.9)
             max_width = prs.slide_width - Inches(1)
             max_height = prs.slide_height - Inches(2.1)
             slide.shapes.add_picture(img_path, left_img, top_img, width=max_width, height=max_height)
-    ppt_out = os.path.join(PLOTS_FOLDER, ppt_filename)
+    ppt_out = os.path.join(plots_folder, ppt_filename)
     prs.save(ppt_out)
     print(f"\n✅ PowerPoint file created: {ppt_out}")
 
@@ -224,7 +243,7 @@ def parse_output(output_text, stream_count):
                 pass
     return pd.DataFrame(results)
 
-def run_all(input_path, max_streams, exe_path):
+def run_all(input_path, max_streams, exe_path, plots_folder):
     stream_steps = generate_stream_runs(max_streams)
     print(f"🔁 Stream ranges to test: {stream_steps}")
 
@@ -240,7 +259,7 @@ def run_all(input_path, max_streams, exe_path):
     exclude_methods = ["LIVE555 Parser", "Custom H.264 Parser"]
     full_df = full_df[~full_df['method'].isin(exclude_methods)].copy()
 
-    csv_path = os.path.join(PLOTS_FOLDER, "benchmark_results.csv")
+    csv_path = os.path.join(plots_folder, "benchmark_results.csv")
     full_df.to_csv(csv_path, index=False)
     print(f"Saved complete data table: {csv_path}")
 
@@ -262,11 +281,13 @@ def run_all(input_path, max_streams, exe_path):
                 s, fastest["method"], fastest["time_per_frame"], fastest["fps"], fastest["cpu"]
             ])
     tbl_fastest = pd.DataFrame(rows, columns=["Streams", "Method", "Time/Frame (ms)", "FPS", "CPU (%)"])
-    pretty_table(tbl_fastest, "Fastest High Profile Method Per Streams", "fastest_high_profile_methods.png")
+    # Save both pretty matplotlib table and highlighted PNG
+    pretty_table(tbl_fastest, "Fastest High Profile Method Per Streams", "fastest_high_profile_methods.png", plots_folder)
+    save_highlighted_table_as_png(tbl_fastest, os.path.join(plots_folder, "fastest_high_profile_methods_highlighted.png"))
     slides.append({
         "title": "Fastest Methods",
         "subtitle": "Best (lowest time/frame) method at each streams value",
-        "filename": "fastest_high_profile_methods.png"
+        "filename": "fastest_high_profile_methods_highlighted.png"
     })
 
     # 2. Scaling (Line) Charts
@@ -281,7 +302,7 @@ def run_all(input_path, max_streams, exe_path):
              filename="scaling_memory.png", subtitle="High Profile Methods: Memory Usage (kB) vs Streams")
     ]
     for cfg in scaling_plots:
-        plot_scaling(df_hp, cfg["metric"], cfg["title"] + "", cfg["ylabel"], cfg["filename"])
+        plot_scaling(df_hp, cfg["metric"], cfg["title"] + "", cfg["ylabel"], cfg["filename"], plots_folder)
         slides.append({
             "title": cfg["title"] + "",
             "subtitle": cfg["subtitle"],
@@ -290,7 +311,7 @@ def run_all(input_path, max_streams, exe_path):
 
     # 3. Grouped Bar Charts
     plot_grouped_bar(df_hp, "fps", "Algorithm Throughput (FPS) vs Streams — Grouped Bar",
-                     "Frames per Second (Higher = Better)", "grouped_barchart_fps.png")
+                     "Frames per Second (Higher = Better)", "grouped_barchart_fps.png", plots_folder)
     slides.append({
         "title": "Grouped FPS Comparison (All Streams)",
         "subtitle": "All High Profile Methods: FPS per Streams, Grouped Bar Chart",
@@ -298,21 +319,21 @@ def run_all(input_path, max_streams, exe_path):
     })
     plot_grouped_bar(df_hp, "time_per_frame",
                      "Algorithm Latency (ms/frame) vs Streams — Grouped Bar",
-                     "Time per Frame (ms, Lower = Better)", "grouped_barchart_timeperframe.png")
+                     "Time per Frame (ms, Lower = Better)", "grouped_barchart_timeperframe.png", plots_folder)
     slides.append({
         "title": "Grouped Latency Comparison (All Streams)",
         "subtitle": "All High Profile Methods: Latency (ms/frame) per Streams, Grouped Bar Chart",
         "filename": "grouped_barchart_timeperframe.png"
     })
     plot_grouped_bar(df_hp, "cpu", "Algorithm CPU Usage (%) vs Streams — Grouped Bar",
-                     "CPU Usage (%)", "grouped_barchart_cpu.png")
+                     "CPU Usage (%)", "grouped_barchart_cpu.png", plots_folder)
     slides.append({
         "title": "Grouped CPU Usage Comparison (All Streams)",
         "subtitle": "All High Profile Methods: CPU Usage per Streams, Grouped Bar Chart",
         "filename": "grouped_barchart_cpu.png"
     })
     plot_grouped_bar(df_hp, "memory", "Algorithm Memory Usage (kB) vs Streams — Grouped Bar",
-                     "Memory Usage (kB)", "grouped_barchart_memory.png")
+                     "Memory Usage (kB)", "grouped_barchart_memory.png", plots_folder)
     slides.append({
         "title": "Grouped Memory Usage Comparison (All Streams)",
         "subtitle": "All High Profile Methods: Memory Usage per Streams, Grouped Bar Chart",
@@ -320,7 +341,7 @@ def run_all(input_path, max_streams, exe_path):
     })
 
     # 4. Section Header for Detailed Tables
-    blank_img = blank_image("blank.png")
+    blank_img = blank_image("blank.png", plots_folder)
     slides.append({
         "title": "Detailed Tables",
         "subtitle": "Full Per-Streams Benchmark Results",
@@ -333,11 +354,14 @@ def run_all(input_path, max_streams, exe_path):
         tbl = df_sub[["method", "time_per_frame", "fps", "cpu", "memory", "mvs", "frames"]].copy()
         tbl.columns = ["Method", "Time/frame (ms)", "FPS", "CPU (%)", "Mem Δ KB", "Total MVs", "Frames"]
         tbl_filename = f"detail_table_{streams}streams.png"
-        pretty_table(tbl, f"All Methods: Streams={streams}", tbl_filename)
+        pretty_table(tbl, None, tbl_filename, plots_folder)
+        # Also save a highlighted PNG for this table
+        highlighted_png = f"detail_table_{streams}streams_highlighted.png"
+        save_highlighted_table_as_png(tbl, os.path.join(plots_folder, highlighted_png))
         slides.append({
             "title": f"Detailed Table: Streams={streams}",
             "subtitle": f"All metrics for high-profile methods, streams={streams}",
-            "filename": tbl_filename
+            "filename": highlighted_png
         })
 
     # 6. Individual Bar Charts per Streams & Metric
@@ -345,7 +369,7 @@ def run_all(input_path, max_streams, exe_path):
         df_sub = df_hp[df_hp['streams'] == streams]
         fname_fps = f"barchart_fps_{streams}streams.png"
         plot_metric(df_sub, "fps", f"Algorithm Comparison: FPS @ {streams} Streams",
-                    "Frames per Second (Higher = Better)", fname_fps, "viridis")
+                    "Frames per Second (Higher = Better)", fname_fps, plots_folder, "viridis")
         slides.append({
             "title": f"Algorithm FPS Comparison ({streams} Streams)",
             "subtitle": f"Throughput (FPS) by High Profile Method at {streams} Streams",
@@ -353,7 +377,7 @@ def run_all(input_path, max_streams, exe_path):
         })
         fname_latency = f"barchart_timeperframe_{streams}streams.png"
         plot_metric(df_sub, "time_per_frame", f"Algorithm Comparison: Time/Frame @ {streams} Streams",
-                    "Time per Frame (ms, Lower = Better)", fname_latency, "mako")
+                    "Time per Frame (ms, Lower = Better)", fname_latency, plots_folder, "mako")
         slides.append({
             "title": f"Algorithm Latency Comparison ({streams} Streams)",
             "subtitle": f"Time per Frame (ms) by High Profile Method at {streams} Streams",
@@ -361,7 +385,7 @@ def run_all(input_path, max_streams, exe_path):
         })
         fname_cpu = f"barchart_cpu_{streams}streams.png"
         plot_metric(df_sub, "cpu", f"Algorithm Comparison: CPU % @ {streams} Streams",
-                    "CPU Usage (%)", fname_cpu, "rocket")
+                    "CPU Usage (%)", fname_cpu, plots_folder, "rocket")
         slides.append({
             "title": f"Algorithm CPU Usage Comparison ({streams} Streams)",
             "subtitle": f"CPU Usage (%) by High Profile Method at {streams} Streams",
@@ -369,21 +393,23 @@ def run_all(input_path, max_streams, exe_path):
         })
         fname_mem = f"barchart_memory_{streams}streams.png"
         plot_metric(df_sub, "memory", f"Algorithm Comparison: Memory @ {streams} Streams",
-                    "Memory (kB)", fname_mem, "crest")
+                    "Memory (kB)", fname_mem, plots_folder, "crest")
         slides.append({
             "title": f"Algorithm Memory Usage Comparison ({streams} Streams)",
             "subtitle": f"Memory Peak (kB) by High Profile Method at {streams} Streams",
             "filename": fname_mem
         })
 
-    save_to_ppt(slides, "benchmark_comparison_slides_high_profile.pptx")
+    save_to_ppt(slides, "benchmark_comparison_slides_high_profile.pptx", plots_folder)
     return full_df
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark, save all charts, and auto-create PowerPoint slides (High Profile only).")
     parser.add_argument("input", help="Input video file or RTSP URL")
     parser.add_argument("streams", type=int, help="Maximum stream count")
+    parser.add_argument("plots_folder", nargs="?", default="plots", help="Output folder for plots and PPTX")
     parser.add_argument("--exe", default="./benchmark_all_9", help="Benchmark executable to run")
     args = parser.parse_args()
-    run_all(args.input, args.streams, args.exe)
+    plots_folder = get_plots_folder(args.plots_folder)
+    run_all(args.input, args.streams, args.exe, plots_folder)
 

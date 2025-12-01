@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
     avformat_find_stream_info(fmt_ctx, NULL);
     video_idx = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
     dec_ctx = avcodec_alloc_context3(NULL);
+    dec_ctx->thread_count = 1;
     avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_idx]->codecpar);
     avcodec_open2(dec_ctx, avcodec_find_decoder(dec_ctx->codec_id), NULL);
     pkt = av_packet_alloc();

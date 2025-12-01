@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-#define N_METHODS 9
+#define N_METHODS 5
 
 typedef struct {
     const char* name;
@@ -31,14 +31,10 @@ typedef struct {
 
 MethodInfo methods[N_METHODS] = {
     {"FFMPEG decode frames", "./extractor6", "method6_output.csv", 1},
-    {"FFmpeg MV", "./extractor0", "method0_output.csv", 1},
-    {"Same Code Not Patched", "./extractor1", "method1_output.csv", 1},
-    {"Optimized MV-Only - FFMPEG Patched", "./extractor2", "method2_output.csv", 1},
-    {"Custom H.264 Parser", "./extractor3", "method3_output.csv", 0},
-    {"LIVE555 Parser", "./extractor4", "method4_output.csv", 0},
-    {"Python mv-extractor", "./extractor5", "method5_output.csv", 1},
-    {"FFMPEG Patched - Minimal", "./extractor7", "method7_output.csv", 1},
-    {"FFMPEG Patched!", "./extractor8", "method8_output.csv", 1}
+    {"FFmpeg MV Orig", "./extractor0", "method0_output.csv", 1},
+    {"FFMPEG Patched", "./extractor7", "method7_output.csv", 1},
+    {"FFmpeg MV - Print", "./extractor0", "method0_output.csv", 1},
+    {"FFMPEG Patched - Print", "./extractor7", "method7_output.csv", 1},
 };
 
 static double now_ms() {
@@ -79,7 +75,7 @@ static void parse_csv(const char *fname, int *frames, int *mvs) {
     fclose(f);
 }
 
-BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_streams) {
+BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_streams, const char *results_dir) {
     BenchmarkResult r = {0};
     r.name = m.name;
     r.supports_high_profile = m.supports_high_profile;
@@ -97,6 +93,7 @@ BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_
         exit(1);
     }
 
+    char csv_filename[256];
     for (int i = 0; i < par_streams; i++) {
         pid_t pid = fork();
         if (pid < 0) {
@@ -105,16 +102,19 @@ BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_
             exit(1);
         } else if (pid == 0) {
             char csv_filename[256];
-            snprintf(csv_filename, sizeof(csv_filename), "%s_%d.csv", m.output_csv, i);
+            snprintf(csv_filename, sizeof(csv_filename), "%s/%s_%d.csv", results_dir, m.output_csv, i);
 
             if (!freopen(csv_filename, "w", stdout)) {
                 fprintf(stderr, "Child %d: freopen to '%s' failed: %s\n", i, csv_filename, strerror(errno));
                 exit(1);
             }
 
-            execl(m.exe, m.exe, input, NULL);
+            if (strstr(m.name, "Print")) {
+                execl(m.exe, m.exe, input, "1", NULL);
+            } else {
+                execl(m.exe, m.exe, input, NULL);
+            }
 
-            // If execl returns, it failed
             fprintf(stderr, "Child %d: exec failed for command %s %s: %s\n", i, m.exe, input, strerror(errno));
             exit(127);
         } else {
@@ -152,17 +152,19 @@ BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_
         double u_sec = usage[i].ru_utime.tv_sec + usage[i].ru_utime.tv_usec / 1e6;
         total_user_cpu_sec += u_sec;
 
-        char csv_filename[256];
-        snprintf(csv_filename, sizeof(csv_filename), "%s_%d.csv", m.output_csv, i);
+        snprintf(csv_filename, sizeof(csv_filename), "%s/%s_%d.csv", results_dir, m.output_csv, i);
         int frames, mvs;
         parse_csv(csv_filename, &frames, &mvs);
         printf("Parsed file '%s': frames=%d, mvs=%d\n", csv_filename, frames, mvs);
 
         total_mvs += mvs;
 
-        // Uncomment to delete CSV files after parsing:
-        if (remove(csv_filename) != 0) {
-             fprintf(stderr, "Warning: failed to remove file '%s'\n", csv_filename);
+        char keep_filename[256];
+        snprintf(keep_filename, sizeof(keep_filename), "%s/%s_0.csv", results_dir, m.output_csv);
+        if (strcmp(csv_filename, keep_filename) != 0) {
+            if (remove(csv_filename) != 0) {
+                fprintf(stderr, "Warning: failed to remove file '%s'\n", csv_filename);
+            }
         }
     }
 
@@ -170,16 +172,14 @@ BenchmarkResult run_benchmark_parallel(MethodInfo m, const char *input, int par_
     free(statuses);
     free(usage);
 
-    // Fixed frames per stream as requested
     int fixed_frames_per_stream = 298;
     int total_frames = fixed_frames_per_stream * par_streams;
 
     r.total_time_ms = t_end - t_start;
-    r.frame_count = total_frames;  // Fixed total frames
-    r.total_motion_vectors = total_mvs; // sum from CSVs
+    r.frame_count = total_frames;
+    r.total_motion_vectors = total_mvs;
     r.memory_peak_kb = max_rss_kb;
     r.cpu_usage_percent = (r.total_time_ms > 0) ? (total_user_cpu_sec / (r.total_time_ms / 1000.0)) * 100.0 : 0.0;
-
     r.avg_time_per_frame_ms = (total_frames > 0) ? (r.total_time_ms / total_frames) : 0;
     r.throughput_fps = (r.avg_time_per_frame_ms > 0) ? 1000.0 / r.avg_time_per_frame_ms : 0;
 
@@ -205,18 +205,19 @@ void print_complete_results(BenchmarkResult r[N_METHODS], int par_streams) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: %s <video_file_or_rtsp_url> [streams]\n", argv[0]);
+    if (argc < 2 || argc > 4) {
+        fprintf(stderr, "Usage: %s <video_file_or_rtsp_url> [streams] [results_dir]\n", argv[0]);
         return 1;
     }
     const char* input = argv[1];
     int par_streams = 1;
-    if (argc == 3)
+    if (argc >= 3)
         par_streams = atoi(argv[2]);
     if (par_streams < 1 || par_streams > 100) {
         fprintf(stderr, "Streams must be between 1 and 100.\n");
         return 1;
     }
+    const char* results_dir = (argc == 4) ? argv[3] : ".";
 
     BenchmarkResult results[N_METHODS];
     printf("🔍 Starting benchmarking on: %s\n", input);
@@ -224,7 +225,7 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < N_METHODS; i++) {
         printf("▶️  Running: %s\n", methods[i].name);
-        results[i] = run_benchmark_parallel(methods[i], input, par_streams);
+        results[i] = run_benchmark_parallel(methods[i], input, par_streams, results_dir);
         printf("✅ Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
                results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
     }

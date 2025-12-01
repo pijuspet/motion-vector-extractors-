@@ -42,13 +42,13 @@ while True:
             print(f"[INFO] Stream ended at frame {frame}", file=sys.stderr)
             break
 
-        #print(f"[DEBUG] Frame {frame} - {len(mvs)} motion vectors", file=sys.stderr)
+       #print(f"[DEBUG] Frame {frame} - {len(mvs)} motion vectors", file=sys.stderr)
 
         for v in mvs:
             try:
                 # Expecting: [src, w, h, src_x, src_y, dst_x, dst_y, mv_x, mv_y]
                 if len(v) >= 9:
-                    #print(f"{frame},5,{v[0]},{v[1]},{v[2]},{v[3]},{v[4]},{v[5]},{v[6]},0x0,{v[7]},{v[8]},1")
+                    print(f"{frame},5,{v[0]},{v[1]},{v[2]},{v[3]},{v[4]},{v[5]},{v[6]},0x0,{v[7]},{v[8]},1")
                     v = v
                 else:
                     print(f"[WARN] Skipping malformed MV at frame {frame}: {v}", file=sys.stderr)
