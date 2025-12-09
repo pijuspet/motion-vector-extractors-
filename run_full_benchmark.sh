@@ -3,12 +3,16 @@
 set -e
 
 # --- Results Directory Setup ---
-RESULTS_BASE="/media/loab/f53f31e5-20d9-427c-b719-3e150951a7ec/results"
+RESULTS_BASE="${PWD}/results"
 mkdir -p "$RESULTS_BASE"
 RUN_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RESULTS_DIR="$RESULTS_BASE/$RUN_TIMESTAMP"
 mkdir -p "$RESULTS_DIR"
 export RESULTS_DIR
+
+# VIDEO_DIR="${PWD}"
+# BENCHMARKING_DIR="${PWD}/benchmarking"
+# BENCHMARKING_EXECUTABLES="$BENCHMARKING_DIR/executables"
 
 build() {
   echo "Building all extractors and tools..."

@@ -1,7 +1,9 @@
+CURRENT_DIR=${shell pwd}
+
 CC = gcc
 
 # Custom FFmpeg install path
-CUSTOM_PREFIX = /home/loab/Documents/motion-vector-extractors-/ffmpeg-8.1/hacked
+CUSTOM_PREFIX = $(CURRENT_DIR)/ffmpeg-8.0/ffmpeg-8.0-ourversion/FFmpeg
 CUSTOM_PKG_CONFIG = PKG_CONFIG_PATH=$(CUSTOM_PREFIX)/lib/pkgconfig
 CUST_FF_CFLAGS = $(shell $(CUSTOM_PKG_CONFIG) pkg-config --cflags libavformat libavcodec libavutil)
 CUST_FF_LIBS   = $(shell $(CUSTOM_PKG_CONFIG) pkg-config --libs libavformat libavcodec libavutil)
@@ -9,25 +11,36 @@ CUST_RPATH = -Wl,-rpath,$(CUSTOM_PREFIX)/lib
 CUST_FF = $(CUST_FF_CFLAGS) $(CUST_FF_LIBS) $(CUST_RPATH)
 
 # Original FFmpeg install path
-ORIG_PREFIX = /home/loab/Documents/motion-vector-extractors-/ffmpeg-8.1/clean-version
-ORIG_PKG_CONFIG = PKG_CONFIG_PATH=$(ORIG_PREFIX)/lib/pkgconfig
-ORIG_FF_CFLAGS = $(shell $(ORIG_PKG_CONFIG) pkg-config --cflags libavformat libavcodec libavutil)
-ORIG_FF_LIBS   = $(shell $(ORIG_PKG_CONFIG) pkg-config --libs libavformat libavcodec libavutil)
-ORIG_RPATH = -Wl,-rpath,$(ORIG_PREFIX)/lib
-ORIG_FF = $(ORIG_FF_CFLAGS) $(ORIG_FF_LIBS) $(ORIG_RPATH)
+REGULAR_PREFIX = $(CURRENT_DIR)/ffmpeg-8.0/clean-version/FFmpeg-n8.0
+REGULAR_PKG_CONFIG = PKG_CONFIG_PATH=$(REGULAR_PREFIX)/lib/pkgconfig
+SYS_FF_CFLAGS = $(shell $(REGULAR_PKG_CONFIG) pkg-config --cflags libavformat libavcodec libavutil)
+SYS_FF_LIBS   = $(shell $(REGULAR_PKG_CONFIG) pkg-config --libs libavformat libavcodec libavutil)
+SYS_RPATH = -Wl,-rpath,$(REGULAR_PREFIX)/lib
+SYS_FF = $(SYS_FF_CFLAGS) $(SYS_FF_LIBS) $(SYS_RPATH)	
+
+EXTRACTOR_DIR = extractors
+EXTRACTOR_EXECUTABLES_DIR = executables
 
 all:
-	$(CC) -O2 -o extractor0 extractors/extractor0.c $(ORIG_FF)
-	$(CC) -O2 -o extractor1 extractors/extractor1.c $(ORIG_FF)
-	$(CC) -O2 -o extractor2 extractors/extractor2.c $(ORIG_FF)
-	$(CC) -O2 -o extractor3 extractors/extractor3.c $(ORIG_FF)
-	$(CC) -O2 -o extractor4 extractors/extractor4.c $(ORIG_FF)
-	$(CC) -O2 -o extractor5 extractors/extractor5.c $(ORIG_FF)
-	$(CC) -O2 -o extractor6 extractors/extractor6.c $(ORIG_FF)
-	$(CC) -O2 -o extractor7 extractors/extractor7.c $(CUST_FF)
-	$(CC) -O2 -o extractor8 extractors/extractor8.c $(CUST_FF)
-	echo $(CUSTOM_PREFIX) > custom
-	
+	@echo "ex0"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor0 $(EXTRACTOR_DIR)/extractor0.c  $(SYS_FF)
+	@echo "ex1"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor1 $(EXTRACTOR_DIR)/extractor1.c  $(SYS_FF)
+	@echo "ex2"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor2 $(EXTRACTOR_DIR)/extractor2.c  $(CUST_FF)
+	@echo "ex3"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor3 $(EXTRACTOR_DIR)/extractor3.c  $(SYS_FF)
+	@echo "ex4"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor4 $(EXTRACTOR_DIR)/extractor4.c  $(SYS_FF)
+	@echo "ex5"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor5 $(EXTRACTOR_DIR)/extractor5.c  $(SYS_FF)
+	@echo "ex6"	
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor6 $(EXTRACTOR_DIR)/extractor6.c  $(SYS_FF)
+	@echo "ex7"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor7 $(EXTRACTOR_DIR)/extractor7.c  $(CUST_FF)
+	@echo "ex8"
+	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor8 $(EXTRACTOR_DIR)/extractor8.c  $(CUST_FF)
+	@echo "DONE"
+
 clean:
 	rm -f extractor*
-

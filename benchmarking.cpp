@@ -38,15 +38,15 @@ struct BenchmarkResult {
 };
 
 std::array<MethodInfo, N_METHODS> methods = {{
-    {"FFMPEG decode frames", "./extractor6", "method6_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"FFmpeg MV", "./extractor0", "method0_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"Same Code Not Patched", "./extractor1", "method1_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    //{"Optimized MV-Only - FFMPEG Patched", "./extractor2", "method2_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
-    //{"Custom H.264 Parser", "./extractor3", "method3_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    //{"LIVE555 Parser", "./extractor4", "method4_output.csv", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"Python mv-extractor", "./extractor5", "method5_output.csv", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"FFMPEG Patched - Minimal", "./extractor7", "method7_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
-    //{"FFMPEG Patched!", "./extractor8", "method8_output.csv", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"}
+    {"FFMPEG decode frames", "./extractors/executables/extractor6", "method6_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    {"FFmpeg MV", "./extractors/executables/extractor0", "method0_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    {"Same Code Not Patched", "./extractors/executables/extractor1", "method1_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    //{"Optimized MV-Only - FFMPEG Patched", "./extractors/executables/extractor2", "method2_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
+    //{"Custom H.264 Parser", "./extractors/executables/extractor3", "method3_output", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    //{"LIVE555 Parser", "./extractors/executables/extractor4", "method4_output", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    {"Python mv-extractor", "./extractors/executables/extractor5", "method5_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    {"FFMPEG Patched - Minimal", "./extractors/executables/extractor7", "method7_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
+    //{"FFMPEG Patched!", "./extractors/executables/extractor8", "method8_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"}
 }};
 
 double now_ms() {
@@ -102,7 +102,7 @@ void print_env_vars(pid_t pid) {
     }
 }
 
-BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& input, int par_streams) {
+BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& input, int par_streams, std::string& absolute_path) {
     BenchmarkResult r;
     r.name = m.name;
     r.supports_high_profile = m.supports_high_profile;
@@ -120,7 +120,7 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
             exit(1);
         } else if (pid == 0) {
             char csv_filename[256];
-            snprintf(csv_filename, sizeof(csv_filename), "%s_%d.csv", m.output_csv.c_str(), i);
+            snprintf(csv_filename, sizeof(csv_filename), "%s/%s_%d.csv", absolute_path.c_str(), m.output_csv.c_str(), i);
 
             /*if (!freopen(csv_filename, "w", stdout)) {
                 std::cerr << "Child " << i << ": freopen to '" << csv_filename << "' failed: " << strerror(errno) << std::endl;
@@ -174,7 +174,7 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
         double u_sec = usage[i].ru_utime.tv_sec + usage[i].ru_utime.tv_usec / 1e6;
         total_user_cpu_sec += u_sec;
         char csv_filename[256];
-        snprintf(csv_filename, sizeof(csv_filename), "%s_%d.csv", m.output_csv.c_str(), i);
+        snprintf(csv_filename, sizeof(csv_filename), "%s/%s_%d.csv", absolute_path.c_str(), m.output_csv.c_str(), i);
         int frames = 0, mvs = 0;
         parse_csv(csv_filename, &frames, &mvs);
         std::cout << "Parsed file '" << csv_filename << "': frames=" << frames << ", mvs=" << mvs << std::endl;
@@ -226,11 +226,12 @@ void print_complete_results(const std::array<BenchmarkResult, N_METHODS>& r, int
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2 || argc > 3) {
+    if (argc < 2 || argc > 4) {
         std::cerr << "Usage: " << argv[0] << " <video_file_or_rtsp_url> [streams]" << std::endl;
         return 1;
     }
     std::string input = argv[1];
+    std::string absolute_path = argv[3];
     int par_streams = 1;
     if (argc == 3)
         par_streams = std::atoi(argv[2]);
@@ -243,7 +244,7 @@ int main(int argc, char** argv) {
     std::cout << "   Streams per method: " << par_streams << "\n\n";
     for (int i = 0; i < N_METHODS; ++i) {
         std::cout << "▶️  Running: " << methods[i].name << std::endl;
-        results[i] = run_benchmark_parallel(methods[i], input, par_streams);
+        results[i] = run_benchmark_parallel(methods[i], input, par_streams, absolute_path);
         std::cout << "✅ Done: " << results[i].frame_count << " frames, "
                   << results[i].avg_time_per_frame_ms << " ms/frame, "
                   << results[i].throughput_fps << " FPS\n\n";

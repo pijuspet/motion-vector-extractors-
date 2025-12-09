@@ -1,2 +1,5 @@
-motionvectors/
-ffmpeg-mvonly/
+ffmpeg-*/
+intel-vtune-*/
+extractors/executables/
+results/
+benchmarking/executables/
