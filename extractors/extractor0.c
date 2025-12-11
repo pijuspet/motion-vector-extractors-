@@ -10,9 +10,17 @@ int main(int argc, char **argv) {
     AVFrame *frame = NULL;
     int video_idx, frame_num = 0;
 
+    char* file_name = "\0";
     int do_print = 1;
     if (argc < 2) { printf("Usage: %s <input> [print]\n", argv[0]); return 1; }
     if (argc >= 3) do_print = atoi(argv[2]);
+    if (argc >= 4) file_name = argv[3];
+
+    FILE* fp = stdout;
+
+    printf("%s\n", argv[3]);
+    if (file_name[0] != '\0')
+        fp = fopen(file_name, "w");
 
     avformat_network_init();
     avformat_open_input(&fmt_ctx, argv[1], NULL, NULL);
@@ -27,7 +35,7 @@ int main(int argc, char **argv) {
     frame = av_frame_alloc();
 
     if (do_print)
-        printf("frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");
+        fprintf(fp, "frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");
 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_idx) {
@@ -38,7 +46,7 @@ int main(int argc, char **argv) {
                     const AVMotionVector *mvs = (const AVMotionVector *)sd->data;
                     for (int i = 0; i < sd->size / sizeof(*mvs); i++) {
                         const AVMotionVector *mv = &mvs[i];
-                        printf("%d,0,%d,%d,%d,%d,%d,%d,%d,0x%llx,%d,%d,%d\n",
+                        fprintf(fp, "%d,0,%d,%d,%d,%d,%d,%d,%d,0x%llx,%d,%d,%d\n",
                             frame_num, mv->source, mv->w, mv->h, mv->src_x, mv->src_y,
                             mv->dst_x, mv->dst_y, mv->flags, mv->motion_x, mv->motion_y, mv->motion_scale);
                     }
@@ -52,5 +60,9 @@ int main(int argc, char **argv) {
 
     avcodec_free_context(&dec_ctx); avformat_close_input(&fmt_ctx);
     av_frame_free(&frame); av_packet_free(&pkt);
+
+    if (fp != stdout)
+        fclose(fp);
+
     return 0;
 }

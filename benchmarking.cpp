@@ -15,7 +15,7 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 
-constexpr int N_METHODS = 5;
+constexpr int N_METHODS = 2;
 
 struct MethodInfo {
     std::string name;
@@ -38,14 +38,14 @@ struct BenchmarkResult {
 };
 
 std::array<MethodInfo, N_METHODS> methods = {{
-    {"FFMPEG decode frames", "./extractors/executables/extractor6", "method6_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    // {"FFMPEG decode frames", "./extractors/executables/extractor6", "method6_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
     {"FFmpeg MV", "./extractors/executables/extractor0", "method0_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"Same Code Not Patched", "./extractors/executables/extractor1", "method1_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    // {"Same Code Not Patched", "./extractors/executables/extractor1", "method1_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
     //{"Optimized MV-Only - FFMPEG Patched", "./extractors/executables/extractor2", "method2_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
     //{"Custom H.264 Parser", "./extractors/executables/extractor3", "method3_output", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
     //{"LIVE555 Parser", "./extractors/executables/extractor4", "method4_output", 0, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"Python mv-extractor", "./extractors/executables/extractor5", "method5_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
-    {"FFMPEG Patched - Minimal", "./extractors/executables/extractor7", "method7_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"},
+    // {"Python mv-extractor", "./extractors/executables/extractor5", "method5_output", 1, "LD_LIBRARY_PATH=/usr/local/lib/"},
+    {"FFMPEG Patched - Minimal", "./extractors/executables/extractor7", "method7_output", 1, "LD_LIBRARY_PATH=/home/ppet/Milestone/motion-vector-extractors-/ffmpeg-8.0/ffmpeg-8.0-ourversion/lib"},
     //{"FFMPEG Patched!", "./extractors/executables/extractor8", "method8_output", 1, "LD_LIBRARY_PATH=/home/loab/Documents/MotionVectors/ffmpeg-mvonly/lib"}
 }};
 
@@ -136,7 +136,7 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
             char* arg1 = const_cast<char*>(input.c_str());
 
             // Exec with correct sentinels: terminate args with nullptr before env
-            execle(exe, arg0, arg1, nullptr, envvec);
+            execle(exe, arg0, arg1, "1", csv_filename, nullptr, envvec);
 
             std::cerr << "Child " << i << ": exec failed for command " << m.exe << " " << input << ": " << strerror(errno) << std::endl;
             exit(127);
@@ -179,9 +179,9 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
         parse_csv(csv_filename, &frames, &mvs);
         std::cout << "Parsed file '" << csv_filename << "': frames=" << frames << ", mvs=" << mvs << std::endl;
         total_mvs += mvs;
-        if (remove(csv_filename) != 0) {
-            std::cerr << "Warning: failed to remove file '" << csv_filename << "'" << std::endl;
-        }
+        // if (remove(csv_filename) != 0) {
+        //     std::cerr << "Warning: failed to remove file '" << csv_filename << "'" << std::endl;
+        // }
     }
     // Fixed frames per stream as requested
     int fixed_frames_per_stream = 298;

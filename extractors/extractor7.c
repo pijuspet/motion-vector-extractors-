@@ -19,12 +19,14 @@ void print_mv(const AVMotionVector* mv, int frame_idx, FILE* out) {
 
 int main(int argc, char** argv) {
     int do_print = 1;
+    char* file_name = "\0";
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <input> [print]\n", argv[0]);
         return -1;
     }
     if (argc >= 3) do_print = atoi(argv[2]);
-
+    if (argc >= 4) file_name = argv[3];
+    
     avformat_network_init();
 
     AVFormatContext* fmt_ctx = NULL;
@@ -83,8 +85,15 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+
     int frame_idx = 0;
     FILE* out = stdout;
+
+    printf("%s\n", argv[3]);
+    if (file_name[0] != '\0')
+        out = fopen(file_name, "w");
+
+
 
     if (do_print)
         fprintf(out, "frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");

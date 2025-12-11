@@ -21,6 +21,9 @@ SYS_FF = $(SYS_FF_CFLAGS) $(SYS_FF_LIBS) $(SYS_RPATH)
 EXTRACTOR_DIR = extractors
 EXTRACTOR_EXECUTABLES_DIR = executables
 
+install:
+	pip install -r requirements.txt
+
 all:
 	@echo "ex0"
 	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor0 $(EXTRACTOR_DIR)/extractor0.c  $(SYS_FF)

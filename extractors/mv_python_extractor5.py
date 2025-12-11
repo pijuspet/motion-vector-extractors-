@@ -14,6 +14,9 @@ if len(sys.argv) < 2:
 
 input_path = sys.argv[1]
 
+f = open('out.csv', 'w')
+sys.stdout = f
+
 print(f"[INFO] Opening input: {input_path}", file=sys.stderr)
 
 cap = VideoCap()

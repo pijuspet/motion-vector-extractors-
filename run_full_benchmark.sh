@@ -16,10 +16,10 @@ export RESULTS_DIR
 
 build() {
   echo "Building all extractors and tools..."
-  make
+  make all
   g++ -O2 -o benchmark_all_9 benchmarking.cpp \
     `pkg-config --cflags --libs libavformat libavcodec libavutil libswscale` -lm
-  gcc -O2 -o combine_mv_csv combine_mv_csv.c
+  g++ -O2 -o combine_mv_csv combine_mv_csv.cpp
   gcc -O2 -o complete_video_generator_9 vidgenerator.c \
     `pkg-config --cflags --libs libavformat libavcodec libavutil libswscale` -lm
  
@@ -33,24 +33,14 @@ extract() {
   fi
   echo "Running 9-method benchmark suite..."
   ./benchmark_all_9 "$INPUT" "$INPUT1" "$RESULTS_DIR"
-  
   echo "Benchmarks complete."
 }
 
+
 combine() {
-  echo "Combining only method6, and method7 CSV outputs..."
-  TMP_COMBINE_DIR=$(mktemp -d)
-  for m in 6 7; do
-    for f in "$RESULTS_DIR"/method${m}_output.csv_*.csv; do
-      if [[ -f "$f" ]]; then
-        cp "$f" "$TMP_COMBINE_DIR/"
-      fi
-    done
-  done
-  ./combine_mv_csv "$TMP_COMBINE_DIR"
-  mv all_motion_vectors.csv "$RESULTS_DIR/all_motion_vectors.csv"
-  rm -rf "$TMP_COMBINE_DIR"
-  echo "Combined motion vectors (method6,7) saved to $RESULTS_DIR/all_motion_vectors.csv."
+  echo "Combining all CSV outputs..."
+  ./combine_mv_csv $RESULTS_DIR
+  echo "Combined motion vectors saved to all_motion_vectors.csv."
 }
 
 decode() {
@@ -76,12 +66,12 @@ plot() {
   fi
   mkdir -p "$RESULTS_DIR/plots"
   echo "Running Python benchmark visualization and PPT generation..."
-  python3 benchmark_python.py "$INPUT" "$INPUT1" "$RESULTS_DIR/plots"
+  python3 benchmark_python.py "$INPUT" "$INPUT1" "$RESULTS_DIR" "$RESULTS_DIR/plots"
   echo "Plotting complete. Plots and PPTX in $RESULTS_DIR/plots."
 }
 
 generate_mv_comparison() {
-  python3 mv_compare.py "$RESULTS_DIR/method0_output.csv_0.csv" "$RESULTS_DIR/method7_output.csv_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt"
+  python3 mv_compare.py "$RESULTS_DIR/method0_output_0.csv" "$RESULTS_DIR/method7_output_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt"
   if [[ -f "$RESULTS_DIR/mv_comparison_result.txt" ]]; then
     echo "Motion vector comparison result saved to $RESULTS_DIR/mv_comparison_result.txt."
   else
@@ -91,7 +81,9 @@ generate_mv_comparison() {
 
 profiler() {
   echo "Running VTune profiler on extractor7 with motion_vectors_only=1..."
-  export LD_LIBRARY_PATH="/home/loab/Documents/motion-vector-extractors-/ffmpeg-8.1/hacked/lib/libavutil:/home/loab/Documents/motion-vector-extractors-/ffmpeg-8.1/hacked/lib/libavformat:$LD_LIBRARY_PATH"
+
+  FFMPEG_LIB="${PWD}/ffmpeg-8.0/ffmpeg-8.0-ourversion/FFmpeg/lib"
+  export LD_LIBRARY_PATH="$FFMPEG_LIB/libavutil:$FFMPEG_LIB/libavformat:$LD_LIBRARY_PATH"
   vtune_dir="$RESULTS_DIR/vtune_results"
   vtune_dir_mem="$RESULTS_DIR/vtune_results_mem"
   mkdir -p "$vtune_dir"
@@ -99,7 +91,7 @@ profiler() {
 
   # Step 1: Collect data
 
-  vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor7 "$INPUT" 0
+  cd ./extractors/executables; vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor7 "$INPUT" 0
 
   vtune -report hotspots -result-dir "$vtune_dir" -format csv -report-output "$vtune_dir/hotspots.csv" 
 
@@ -183,9 +175,3 @@ for step in $CHOICES; do
     *) echo "Invalid step: $step" ;;
   esac
 done
-
-
-# Print only the absolute results directory as the last line for automation
-echo #"$(realpath "$RESULTS_DIR")"
-echo "$(realpath "$RESULTS_DIR")"
-

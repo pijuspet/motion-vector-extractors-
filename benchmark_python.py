@@ -192,14 +192,15 @@ def generate_stream_runs(max_streams):
         base += list(range(10, max_streams + 1, 5))
     return base
 
-def run_benchmark(input_file, streams, exe='./benchmark_all_9'):
+def run_benchmark(input_file, streams, absolute_path, exe='./benchmark_all_9'):
     print(f"\n▶️  Running benchmark with {streams} streams...")
     result = subprocess.run(
-        [exe, input_file, str(streams)],
+        [exe, input_file, str(streams), absolute_path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding='utf-8'
     )
+    print(result)
     if result.returncode != 0:
         print(f"Error running benchmark: {result.stderr}")
         return pd.DataFrame(), result.stdout
@@ -243,13 +244,13 @@ def parse_output(output_text, stream_count):
                 pass
     return pd.DataFrame(results)
 
-def run_all(input_path, max_streams, exe_path, plots_folder):
+def run_all(input_path, max_streams, exe_path, absolute_path, plots_folder):
     stream_steps = generate_stream_runs(max_streams)
     print(f"🔁 Stream ranges to test: {stream_steps}")
 
     all_results = []
     for s in stream_steps:
-        df, _ = run_benchmark(input_path, s, exe=exe_path)
+        df, _ = run_benchmark(input_path, s, absolute_path, exe=exe_path)
         if df.empty:
             print(f"Warning: No data returned for streams={s}")
         all_results.append(df)
@@ -407,9 +408,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark, save all charts, and auto-create PowerPoint slides (High Profile only).")
     parser.add_argument("input", help="Input video file or RTSP URL")
     parser.add_argument("streams", type=int, help="Maximum stream count")
+    parser.add_argument("absolute_path", nargs="?", default="plots", help="results")
     parser.add_argument("plots_folder", nargs="?", default="plots", help="Output folder for plots and PPTX")
     parser.add_argument("--exe", default="./benchmark_all_9", help="Benchmark executable to run")
     args = parser.parse_args()
     plots_folder = get_plots_folder(args.plots_folder)
-    run_all(args.input, args.streams, args.exe, plots_folder)
+    run_all(args.input, args.streams, args.exe, args.absolute_path, plots_folder)
 

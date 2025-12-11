@@ -23,6 +23,9 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    char* file_name = "\0";
+    if (argc >= 4) file_name = argv[3];
+    
     avformat_network_init();
 
     AVFormatContext* fmt_ctx = NULL;
@@ -83,6 +86,13 @@ int main(int argc, char** argv) {
     int frame_idx = 0;
     // Buffer output to a file (stdout could be slow)
     FILE* out = stdout;
+
+
+    printf("%s\n", argv[3]);
+    if (file_name[0] != '\0')
+        out = fopen(file_name, "w");
+
+
 
     fprintf(out, "frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n");
 
