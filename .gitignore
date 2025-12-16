@@ -1,5 +1,5 @@
+__pycache__/
 ffmpeg-*/
 intel-vtune-*/
-extractors/executables/
+executables/
 results/
-benchmarking/executables/

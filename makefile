@@ -20,6 +20,11 @@ SYS_FF = $(SYS_FF_CFLAGS) $(SYS_FF_LIBS) $(SYS_RPATH)
 
 EXTRACTOR_DIR = extractors
 EXTRACTOR_EXECUTABLES_DIR = executables
+WRITER_SRC = $(EXTRACTOR_DIR)/writer.cpp -Iextractors $(DUMP)
+
+VIDEO_FILE = $(CURRENT_DIR)/videos/stickman.mp4
+LAST_RESULTS_DIR = $(shell ls -d $(CURRENT_DIR)/results/* | sort | tail -n 1)
+CSV_FILE_PATH = $(LAST_RESULTS_DIR)/all_motion_vectors.csv
 
 install:
 	pip install -r requirements.txt
@@ -44,6 +49,13 @@ all:
 	@echo "ex8"
 	$(CC) -O2 -o $(EXTRACTOR_DIR)/$(EXTRACTOR_EXECUTABLES_DIR)/extractor8 $(EXTRACTOR_DIR)/extractor8.c  $(CUST_FF)
 	@echo "DONE"
+
+benchmark:
+	./run_full_benchmark.sh $(VIDEO_FILE) 5
+
+generate_video:
+	python ./video_generation/combine_motion_vectors_with_video.py $(VIDEO_FILE) $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)
+	python ./video_generation/generate_motion_vectors_video.py $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)
 
 clean:
 	rm -f extractor*

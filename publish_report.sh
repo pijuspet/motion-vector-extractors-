@@ -95,13 +95,11 @@ publish_confluence() {
 
 run_benchmark() {
   echo "DEBUG: Starting benchmark..."
-  BENCHMARK_OUT=$(echo 0 | ./run_full_benchmark.sh bigbunny.mp4 15)
+  echo 0 | ./run_full_benchmark.sh ./videos/bigbunny.mp4 15
   echo "DEBUG: Benchmark script finished."
 
-  echo "DEBUG: Raw BENCHMARK_OUT:"
-  echo "$BENCHMARK_OUT"
-
-  RESULTS_DIR=$(echo "$BENCHMARK_OUT" | grep '^/' | tail -n 1 | xargs)
+  CURRENT_DIR=$(pwd)
+  RESULTS_DIR=$(ls -d "$CURRENT_DIR"/results/* | sort | tail -n 1)
 
   echo "DEBUG: Filtered path: >$RESULTS_DIR<"
   if [[ -z "$RESULTS_DIR" || ! -d "$RESULTS_DIR" ]]; then
@@ -109,7 +107,6 @@ run_benchmark() {
     exit 1
   fi
 
-  echo "Detected results directory: $RESULTS_DIR"
   echo "$RESULTS_DIR"
 }
 

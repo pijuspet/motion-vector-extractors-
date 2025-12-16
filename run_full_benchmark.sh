@@ -3,9 +3,10 @@
 set -e
 
 # --- Results Directory Setup ---
+CURRENT_DIR="${PWD}"
 RESULTS_BASE="${PWD}/results"
 mkdir -p "$RESULTS_BASE"
-RUN_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUN_TIMESTAMP=$(date +"%Y%m%d_%H%M")
 RESULTS_DIR="$RESULTS_BASE/$RUN_TIMESTAMP"
 mkdir -p "$RESULTS_DIR"
 export RESULTS_DIR
@@ -19,7 +20,7 @@ build() {
   make all
   g++ -O2 -o benchmark_all_9 benchmarking.cpp \
     `pkg-config --cflags --libs libavformat libavcodec libavutil libswscale` -lm
-  g++ -O2 -o combine_mv_csv combine_mv_csv.cpp
+  (cd utils; g++ -O2 -o executables/combine_csv combine_csv.cpp)
   gcc -O2 -o complete_video_generator_9 vidgenerator.c \
     `pkg-config --cflags --libs libavformat libavcodec libavutil libswscale` -lm
  
@@ -39,7 +40,7 @@ extract() {
 
 combine() {
   echo "Combining all CSV outputs..."
-  ./combine_mv_csv $RESULTS_DIR
+  (cd utils/executables ; ./combine_csv $RESULTS_DIR)
   echo "Combined motion vectors saved to all_motion_vectors.csv."
 }
 
@@ -66,12 +67,12 @@ plot() {
   fi
   mkdir -p "$RESULTS_DIR/plots"
   echo "Running Python benchmark visualization and PPT generation..."
-  python3 benchmark_python.py "$INPUT" "$INPUT1" "$RESULTS_DIR" "$RESULTS_DIR/plots"
+  (cd benchmarking; python3 benchmark_python.py "$INPUT" "$INPUT1" "$CURRENT_DIR" "$RESULTS_DIR" "$RESULTS_DIR/plots")
   echo "Plotting complete. Plots and PPTX in $RESULTS_DIR/plots."
 }
 
 generate_mv_comparison() {
-  python3 mv_compare.py "$RESULTS_DIR/method0_output_0.csv" "$RESULTS_DIR/method7_output_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt"
+  (cd utils; python3 mv_compare.py "$RESULTS_DIR/method0_output_0.csv" "$RESULTS_DIR/method7_output_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt")
   if [[ -f "$RESULTS_DIR/mv_comparison_result.txt" ]]; then
     echo "Motion vector comparison result saved to $RESULTS_DIR/mv_comparison_result.txt."
   else
@@ -85,22 +86,17 @@ profiler() {
   FFMPEG_LIB="${PWD}/ffmpeg-8.0/ffmpeg-8.0-ourversion/FFmpeg/lib"
   export LD_LIBRARY_PATH="$FFMPEG_LIB/libavutil:$FFMPEG_LIB/libavformat:$LD_LIBRARY_PATH"
   vtune_dir="$RESULTS_DIR/vtune_results"
-  vtune_dir_mem="$RESULTS_DIR/vtune_results_mem"
   mkdir -p "$vtune_dir"
-  mkdir -p "$vtune_dir_mem"
 
   # Step 1: Collect data
 
-  cd ./extractors/executables; vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor7 "$INPUT" 0
+  (cd ./extractors/executables; vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor7 "$INPUT" 0 "$RESULTS_DIR/method7_output_vtune.csv")
 
   vtune -report hotspots -result-dir "$vtune_dir" -format csv -report-output "$vtune_dir/hotspots.csv" 
 
   vtune -report top-down -result-dir "$vtune_dir" -format csv -report-output "$vtune_dir/topdown.csv"
   # Generate call tree and hotspots bar chart from VTune topdown CSV
-  python3 vtune_hotspots_plot.py "$vtune_dir/topdown.csv"
-
-  #vtune -collect memory-access -result-dir "$vtune_dir_mem" -- ./extractor7 "$INPUT" 0
-  #vtune -report memory-access -result-dir "$vtune_dir_mem" -format csv -report-output "$vtune_dir_mem/memory_report.csv"
+  (cd utils; python3 vtune_hotspots_plot.py "$vtune_dir/topdown.csv")
 
   echo "Profiler run complete. Results in $vtune_dir."
 }
