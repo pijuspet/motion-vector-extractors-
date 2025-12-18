@@ -11,14 +11,14 @@ extern "C" {
 
 
 class MotionVectorWriter {
-public:    
+public:
     ~MotionVectorWriter() {
         Close();
     }
-    bool Open (std::string const& filename);
-    int Write(int frame_num, const AVMotionVector *mv, int method_id, size_t size);
+    bool Open(std::string const& filename);
+    int Write(int frame_num, const AVMotionVector* mv, int method_id, size_t size);
     void Close();
-private:    
+private:
     std::ofstream file;
     int frame_num = 0; // Current frame number   
 };

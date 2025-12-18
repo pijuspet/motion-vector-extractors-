@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     }
 
     MotionVectorWriter writer;
-    if (do_print){
+    if (do_print) {
         if (!writer.Open(file_name)) {
             fprintf(stderr, "Failed to open output file\n");
             return 1;

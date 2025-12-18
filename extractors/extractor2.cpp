@@ -9,25 +9,25 @@ extern "C" {
 #include <inttypes.h> // for PRIx64
 #include "writer.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     if (argc < 2) {
         fprintf(stderr, "usage: %s rtsp://host:port/stream\n", argv[0]);
         return 1;
     }
-    
+
     std::string file_name = "";
     int do_print = 1;
     if (argc >= 3) do_print = atoi(argv[2]);
     if (argc >= 4) file_name = argv[3];
 
-    AVFormatContext *fmt_ctx = NULL;
-    AVCodecContext *dec_ctx = NULL;
+    AVFormatContext* fmt_ctx = NULL;
+    AVCodecContext* dec_ctx = NULL;
     int video_stream_idx = -1, frame_count = 0;
-    AVPacket *pkt = av_packet_alloc();
-    AVFrame *frame = av_frame_alloc();
+    AVPacket* pkt = av_packet_alloc();
+    AVFrame* frame = av_frame_alloc();
 
     // Open RTSP input with options
-    AVDictionary *opts = NULL;
+    AVDictionary* opts = NULL;
     av_dict_set(&opts, "rtsp_transport", "udp", 0);
     av_dict_set(&opts, "stimeout", "2500000", 0);
     av_dict_set(&opts, "buffer_size", "32768", 0);
@@ -50,8 +50,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    AVStream *video_stream = fmt_ctx->streams[video_stream_idx];
-    const AVCodec *dec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    AVStream* video_stream = fmt_ctx->streams[video_stream_idx];
+    const AVCodec* dec = avcodec_find_decoder(video_stream->codecpar->codec_id);
     if (!dec) {
         fprintf(stderr, "Decoder not found\n");
         return 1;
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
     }
 
     MotionVectorWriter writer;
-    if (do_print){
+    if (do_print) {
         if (!writer.Open(file_name)) {
             fprintf(stderr, "Failed to open output file\n");
             return 1;
@@ -89,20 +89,9 @@ int main(int argc, char **argv) {
             }
 
             while (avcodec_receive_frame(dec_ctx, frame) >= 0) {
-                AVFrameSideData *sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
+                AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
                 if (sd) {
-                    // const AVMotionVector *mvs = (const AVMotionVector *)sd->data;
-                    // int n = sd->size / sizeof(*mvs);
-                    // for (int i = 0; i < n; i++) {
-                    //     const AVMotionVector *mv = &mvs[i];
-                    //     /*printf("%d,2,%d,%d,%d,%d,%d,%d,%d,0x%" PRIx64 ",%d,%d,%d\n",
-                    //         frame_count, mv->source, mv->w, mv->h,
-                    //         mv->src_x, mv->src_y,
-                    //         mv->dst_x, mv->dst_y,
-                    //         (uint64_t)mv->flags,
-                    //         mv->motion_x, mv->motion_y, mv->motion_scale);*/
-                    // }
-                    if(do_print)
+                    if (do_print)
                         writer.Write(frame_count, (const AVMotionVector*)sd->data, 2, sd->size);
                 }
                 frame_count++;

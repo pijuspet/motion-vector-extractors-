@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 
 
     std::string file_name = "";
-    if (argc >= 4) 
+    if (argc >= 4)
         file_name = argv[3];
 
     avformat_network_init();
@@ -47,19 +47,19 @@ int main(int argc, char** argv) {
         }
     }
 
-    if(video_stream_index < 0) {
+    if (video_stream_index < 0) {
         fprintf(stderr, "No video stream found.\n");
         return -1;
     }
 
     const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
-    if(!codec){
+    if (!codec) {
         fprintf(stderr, "Codec not found.\n");
         return -1;
     }
 
     AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
-    if(!codec_ctx){
+    if (!codec_ctx) {
         fprintf(stderr, "Could not allocate codec context.\n");
         return -1;
     }
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
     AVPacket* pkt = av_packet_alloc();
     AVFrame* frame = av_frame_alloc();
-    if(!pkt || !frame) {
+    if (!pkt || !frame) {
         fprintf(stderr, "Could not allocate packet or frame.\n");
         return -1;
     }
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 
                 AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
                 if (sd) {
-                    if(do_print)
+                    if (do_print)
                         writer.Write(frame_idx, (const AVMotionVector*)sd->data, 1, sd->size);
                 }
 
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
     while (avcodec_receive_frame(codec_ctx, frame) == 0) {
         AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
         if (sd) {
-            if(do_print)
+            if (do_print)
                 writer.Write(frame_idx, (const AVMotionVector*)sd->data, 1, sd->size);
         }
         av_frame_unref(frame);

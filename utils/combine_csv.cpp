@@ -5,7 +5,7 @@ int main(int argc, char* argv[]) {
     std::string absolute_path = argv[1];
     std::string fullpath = absolute_path + "/all_motion_vectors.csv";
 
-    FILE *out = fopen(fullpath.c_str(), "w");
+    FILE* out = fopen(fullpath.c_str(), "w");
     if (!out) {
         fprintf(stderr, "Failed to open all_motion_vectors.csv for writing.\n");
         return 1;
@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
         snprintf(fname, sizeof(fname), "%s/method%d_output_0.csv", absolute_path.c_str(), i);
 
 
-        FILE *in = fopen(fname, "r");
+        FILE* in = fopen(fname, "r");
         if (!in) {
             fprintf(stderr, "Warning: missing %s\n", fname);
             continue;

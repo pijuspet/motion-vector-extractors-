@@ -26,7 +26,7 @@ if not opened:
 frame = 0
 f = open(output_file, "w")
 
-f.write("frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale")
+f.write("frame,method_id,source,w,h,src_x,src_y,dst_x,dst_y,flags,motion_x,motion_y,motion_scale\n")
 
 while True:
     try:
@@ -51,8 +51,7 @@ while True:
             try:
                 # Expecting: [src, w, h, src_x, src_y, dst_x, dst_y, mv_x, mv_y]
                 if len(v) >= 9:
-                    f.write(f"{frame},5,{v[0]},{v[1]},{v[2]},{v[3]},{v[4]},{v[5]},{v[6]},0x0,{v[7]},{v[8]},1")
-                    v = v
+                    f.write(f"{frame},5,{v[0]},{v[1]},{v[2]},{v[3]},{v[4]},{v[5]},{v[6]},0x0,{v[7]},{v[8]},1\n")
                 else:
                     print(f"[WARN] Skipping malformed MV at frame {frame}: {v}", file=sys.stderr)
             except Exception as mv_err:

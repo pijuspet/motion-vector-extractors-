@@ -1,9 +1,12 @@
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+extern "C" {
+    #include <libavformat/avformat.h>
+    #include <libavcodec/avcodec.h>
+}
 
-int main(int argc, char **argv){
+int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s rtsp://url_or_video.mp4\n", argv[0]);
         return 1;
@@ -12,8 +15,8 @@ int main(int argc, char **argv){
     // Initialize FFmpeg Network
     avformat_network_init();
 
-    AVFormatContext *fmt_ctx = NULL;
-    AVPacket *pkt = av_packet_alloc();
+    AVFormatContext* fmt_ctx = NULL;
+    AVPacket* pkt = av_packet_alloc();
     int video_index = -1;
     int frame = 0;
 
@@ -38,17 +41,17 @@ int main(int argc, char **argv){
 
     while (av_read_frame(fmt_ctx, pkt) >= 0 && frame < 50) {
         if (pkt->stream_index == video_index) {
-            const uint8_t *d = pkt->data;
+            const uint8_t* d = pkt->data;
             int size = pkt->size;
 
             for (int i = 0; i < size - 4; i++) {
-                if ((d[i] == 0x00 && d[i+1] == 0x00 && d[i+2] == 0x01) || 
-                    (d[i] == 0x00 && d[i+1] == 0x00 && d[i+2] == 0x00 && d[i+3] == 0x01)) {
-  
+                if ((d[i] == 0x00 && d[i + 1] == 0x00 && d[i + 2] == 0x01) ||
+                    (d[i] == 0x00 && d[i + 1] == 0x00 && d[i + 2] == 0x00 && d[i + 3] == 0x01)) {
+
                     int mb_x = (i % 40), mb_y = (i % 30);
-                    int mv_x = (d[i+4] % 16) - 8;
-                    int mv_y = (d[i+5] % 16) - 8;
-                    printf("%d,4,%d,%d,%d,%d\n", frame, mb_x, mb_y, mv_x, mv_y);
+                    int mv_x = (d[i + 4] % 16) - 8;
+                    int mv_y = (d[i + 5] % 16) - 8;
+                    //printf("%d,4,%d,%d,%d,%d\n", frame, mb_x, mb_y, mv_x, mv_y);
                 }
             }
 
