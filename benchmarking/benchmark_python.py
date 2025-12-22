@@ -184,7 +184,7 @@ def save_to_ppt(slides, ppt_filename, plots_folder):
             slide.shapes.add_picture(img_path, left_img, top_img, width=max_width, height=max_height)
     ppt_out = os.path.join(plots_folder, ppt_filename)
     prs.save(ppt_out)
-    print(f"\n✅ PowerPoint file created: {ppt_out}")
+    print(f"\nPowerPoint file created: {ppt_out}")
 
 def generate_stream_runs(max_streams):
     base = [x for x in [1, 3, 5] if x <= max_streams]
@@ -193,7 +193,7 @@ def generate_stream_runs(max_streams):
     return base
 
 def run_benchmark(input_file, streams, project_absolute_path, results_absolute_path, venv_dir, exe='./benchmark_all_9'):
-    print(f"\n▶️  Running benchmark with {streams} streams...")
+    print(f"Running benchmark with {streams} streams...")
     exe_fullpath = project_absolute_path +"/benchmarking/executables/" + exe 
     result = subprocess.run(
         [exe_fullpath, input_file, str(streams), results_absolute_path, project_absolute_path, venv_dir],
@@ -246,7 +246,7 @@ def parse_output(output_text, stream_count):
 
 def run_all(input_path, max_streams, exe_path, project_absolute_path, results_absolute_path, venv_dir, plots_folder):
     stream_steps = generate_stream_runs(max_streams)
-    print(f"🔁 Stream ranges to test: {stream_steps}")
+    print(f"Stream ranges to test: {stream_steps}")
 
     all_results = []
     for s in stream_steps:

@@ -3,3 +3,4 @@ ffmpeg-*/
 intel-vtune-*/
 executables/
 results/
+.env

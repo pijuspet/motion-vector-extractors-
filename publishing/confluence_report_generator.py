@@ -1,35 +1,24 @@
-       
-#!/usr/bin/env python3
-"""
-Automated Confluence Report Publisher
-Runs the benchmark, collects output directory, and publishes results to Confluence.
-"""
-import subprocess
-import sys
 import os
-from turtle import title
+import time
 from atlassian import Confluence
-from datetime import datetime
-from pptx import Presentation
-
-# --- CONFIGURATION ---
-CONFLUENCE_URL = os.environ.get("CONFLUENCE_URL", "https://milestone.atlassian.net/wiki")
-USERNAME = os.environ.get("CONFLUENCE_USER", "loab@milestone.dk")
-API_TOKEN = os.environ.get("CONFLUENCE_TOKEN", "")
-SPACE_KEY = os.environ.get("CONFLUENCE_SPACE", "EACA")
-MAIN_PAGE_TITLE = os.environ.get("CONFLUENCE_MAIN_PAGE", "FFMpeg Main Dashboard")
-GITHUB_COMMIT_URL = os.environ.get("GITHUB_COMMIT_URL", "")
-
+import glob
+import requests
+from bs4 import BeautifulSoup
+import re
 
 class ConfluenceReportGenerator:
-    def __init__(self, confluence_url, username, api_token, space_key):
+    def __init__(self, confluence_url, username, api_token, space_key, main_page_title):
         self.confluence = Confluence(
             url=confluence_url,
             username=username,
             password=api_token
         )
         self.space_key = space_key
+        self.main_page_title = main_page_title
 
+    def get_page_by_title(self):
+        return self.confluence.get_page_by_title(self.space_key, self.main_page_title)
+    
     def create_detailed_report_page(self, results_dir, report_title, parent_id=None, git_commit_url=None):
         """
         Create a detailed report page for the given results_dir and report_title if it does not already exist.
@@ -132,7 +121,6 @@ class ConfluenceReportGenerator:
         """
         Attach all relevant images/files for the detailed report to the given page_id.
         """
-        import glob
         # Profiler Results (VTune Hotspots)
         vtune_img = os.path.join(vtune_dir, "vtune_hotspots.png") if vtune_dir else None
         if vtune_img and os.path.exists(vtune_img):
@@ -175,9 +163,7 @@ class ConfluenceReportGenerator:
         """
         Generate the detailed report body using the slide structure and images from plots_dir and vtune_dir.
         """
-        import glob
-        import requests
-        
+     
 
         # Helper to embed HTML call tree if available (interactive)
         def get_calltree_html():
@@ -204,142 +190,12 @@ class ConfluenceReportGenerator:
                 att = attachments['results'][0] if attachments['size'] > 0 else None
                 if att and 'download' in att['_links']:
                     url = self.confluence.url + att['_links']['download']
-                    import requests
                     resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
                     if resp.ok and resp.text.strip():
                         return f'<pre style="background:#f4f4f4; border:1px solid #ccc; padding:10px;">{resp.text.strip()}</pre>'
             except Exception:
                 pass
             return "<em>No motion vector comparison result available</em>"
-
-        # Helper to embed call tree as plain text (non-interactive)
-        def get_calltree_pre():
-            if not page_id:
-                return ""
-            try:
-                attachments = self.confluence.get_attachments_from_content(page_id, filename="call_tree.html")
-                att = attachments['results'][0] if attachments['size'] > 0 else None
-                if att and 'download' in att['_links']:
-                    url = self.confluence.url + att['_links']['download']
-                    resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
-                    if resp.ok and resp.text.strip():
-                        html_content = resp.text.strip()
-                        try:
-                            from bs4 import BeautifulSoup
-                            soup = BeautifulSoup(html_content, 'html.parser')
-                            ul = soup.find('ul', class_='vtune-tree')
-                            def extract_plain(node):
-                                items = []
-                                for li in node.find_all('li', recursive=False):
-                                    func = li.find('span', class_='func')
-                                    percent = li.find('span', class_='percent')
-                                    self_time = li.find('span', class_='self')
-                                    label = ''
-                                    if func:
-                                        label += func.get_text(strip=True)
-                                    if percent:
-                                        label += f' {percent.get_text(strip=True)}'
-                                    if self_time:
-                                        label += f' {self_time.get_text(strip=True)}'
-                                    child_ul = li.find('ul')
-                                    if child_ul:
-                                        items.append(f'<li>{label}<ul>{extract_plain(child_ul)}</ul></li>')
-                                    else:
-                                        items.append(f'<li>{label}</li>')
-                                return ''.join(items)
-                            if ul:
-                                tree_html = f'<ul>{extract_plain(ul)}</ul>'
-                                return f'<div style="background:#f4f4f4; border:1px solid #ccc; padding:10px; width:100%; max-width:100vw; overflow-x:auto;">{tree_html}</div>'
-                            # If no <ul>, try to parse <table> as a call tree
-                            table = soup.find('table')
-                            if table:
-                                rows = table.find_all('tr')
-                                headers = [th.get_text(strip=True).lower() for th in rows[0].find_all(['th','td'])]
-                                fn_idx = next((i for i, h in enumerate(headers) if 'function' in h), 0)
-                                percent_idx = next((i for i, h in enumerate(headers) if 'cpu total' in h or 'percent' in h), 1)
-                                self_idx = next((i for i, h in enumerate(headers) if 'self' in h), 2)
-                                items = []
-                                stack = [(0, items)]  # (indent, list)
-                                for row in rows[1:]:
-                                    cols = row.find_all(['td','th'])
-                                    if not cols: continue
-                                    fn_cell = cols[fn_idx]
-                                    # Count indentation: leading &nbsp;, spaces, or triangles
-                                    raw_html = str(fn_cell)
-                                    nbsp_count = raw_html.count('&nbsp;')
-                                    text = fn_cell.get_text()
-                                    triangle_count = text.count('\u25b6') + text.count('▶')
-                                    space_count = 0
-                                    for c in text:
-                                        if c == ' ':
-                                            space_count += 1
-                                        else:
-                                            break
-                                    indent = nbsp_count + triangle_count + (space_count // 2)
-                                    label = text.strip()
-                                    if percent_idx < len(cols):
-                                        label += f' {cols[percent_idx].get_text(strip=True)}'
-                                    if self_idx < len(cols):
-                                        label += f' {cols[self_idx].get_text(strip=True)}'
-                                    # Manage stack for nesting
-                                    while stack and indent < stack[-1][0]:
-                                        stack.pop()
-                                    parent_list = stack[-1][1]
-                                    new_list = []
-                                    parent_list.append(f'<li>{label}')
-                                    # Look ahead to next row to see if it is more indented
-                                    next_indent = None
-                                    if row != rows[-1]:
-                                        next_row = rows[rows.index(row)+1]
-                                        next_cols = next_row.find_all(['td','th'])
-                                        if next_cols:
-                                            next_raw_html = str(next_cols[fn_idx])
-                                            next_nbsp_count = next_raw_html.count('&nbsp;')
-                                            next_text = next_cols[fn_idx].get_text()
-                                            next_triangle_count = next_text.count('\u25b6') + next_text.count('▶')
-                                            next_space_count = 0
-                                            for c in next_text:
-                                                if c == ' ':
-                                                    next_space_count += 1
-                                                else:
-                                                    break
-                                            next_indent = next_nbsp_count + next_triangle_count + (next_space_count // 2)
-                                    if next_indent is not None and next_indent > indent:
-                                        parent_list.append('<ul>')
-                                        stack.append((next_indent, parent_list))
-                                    else:
-                                        parent_list.append('</li>')
-                                # Close any open <ul>
-                                while len(stack) > 1:
-                                    stack.pop()
-                                    stack[-1][1].append('</ul></li>')
-                                tree_html = f'<ul>{"".join(items)}</ul>'
-                                return f'<div style="background:#f4f4f4; border:1px solid #ccc; padding:10px; width:100%; max-width:100vw; overflow-x:auto;">{tree_html}</div>'
-                            # fallback: just show text
-                            return f'<pre style="background:#f4f4f4; border:1px solid #ccc; padding:10px; width:100%; max-width:100vw; overflow-x:auto;">{soup.get_text()}</pre>'
-                        except Exception as e:
-                            return f'<pre style="background:#f4f4f4; border:1px solid #ccc; padding:10px; width:100%; max-width:100vw; overflow-x:auto;">{html_content}</pre>'
-                        content += "<h3>Profiler Results</h3>\n"
-                        # Add interactive call tree view using the Confluence HTML macro plugin
-                        content += "<h4>Call Tree (Interactive)</h4>\n"
-                        # Embed the HTML macro for the interactive call tree
-                        content += f'<ac:structured-macro ac:name="html"><ac:plain-text-body><![CDATA[{call_tree_html}]]></ac:plain-text-body></ac:structured-macro>\n'
-                        # Add non-interactive call tree view
-                        content += "<h4>Call Tree (Plain List)</h4>\n"
-                        content += call_tree_list_html
-                        # Add motion vector comparison
-                        content += "<h3>Motion Vector Comparison</h3>\n"
-                        content += f"<pre>{mv_comparison}</pre>\n"
-                        return content
-                    resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
-                    print(f"[DEBUG] mv_comparison_result.txt content: {resp.text[:200]} ...")
-                    if resp.ok and resp.text.strip():
-                        return f'<pre style="background:#f4f4f4; border:1px solid #ccc; padding:10px; width:100%; max-width:100vw; overflow-x:auto;">{resp.text.strip()}</pre>'
-            except Exception as e:
-                print(f"[DEBUG] Error reading mv_comparison_result.txt: {e}")
-            return "<em>No motion vector comparison result available</em>"
-        
-        
 
         body = '<div style="text-align: left; width: 100vw; max-width: 100vw; margin: 0; padding: 0;">'
         # 1. Motion Vector Comparison (always first)
@@ -369,7 +225,6 @@ class ConfluenceReportGenerator:
                 attachments = self.confluence.get_attachments_from_content(page_id, filename=filename)
                 att = attachments['results'][0] if attachments['size'] > 0 else None
                 if att and 'download' in att['_links']:
-                    import requests
                     url = self.confluence.url + att['_links']['download']
                     resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
                     if resp.ok:
@@ -382,7 +237,6 @@ class ConfluenceReportGenerator:
         body += '<h3>VTune Call Tree (Non-Interactive)</h3>'
         if calltree_content:
             try:
-                from bs4 import BeautifulSoup
                 soup = BeautifulSoup(calltree_content, 'html.parser')
                 tree_container = soup.find('ul', class_='tree-root')
                 if tree_container:
@@ -451,11 +305,10 @@ class ConfluenceReportGenerator:
         return body
 
     def update_main_dashboard_summary(self, first_results_dir, latest_results_dir, report_title, git_commit_run1=None, git_commit_run2=None):
-        dashboard_page = self.confluence.get_page_by_title(self.space_key, MAIN_PAGE_TITLE)
+        dashboard_page = self.get_page_by_title()
         if not dashboard_page:
-            raise Exception(f"Main dashboard page '{MAIN_PAGE_TITLE}' not found.")
+            raise Exception(f"Main dashboard page '{self.main_page_title}' not found.")
         dashboard_id = dashboard_page['id']
-        import os, glob, time
         page_body = f'<div style="text-align: left; width: 100vw; max-width: 100vw; margin: 0; padding: 0;">'
         files_to_attach = []
         def add_if_exists(path, name):
@@ -510,7 +363,6 @@ class ConfluenceReportGenerator:
             try:
                 att = self.confluence.get_attachment_by_file_name(dashboard_id, "call_tree.html")
                 if att and 'download' in att['_links']:
-                    import requests
                     url = self.confluence.url + att['_links']['download']
                     resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
                     if resp.ok:
@@ -523,7 +375,6 @@ class ConfluenceReportGenerator:
                 attachments = self.confluence.get_attachments_from_content(dashboard_id, filename=name)
                 att = attachments['results'][0] if attachments['size'] > 0 else None
                 if att and 'download' in att['_links']:
-                    import requests
                     url = self.confluence.url + att['_links']['download']
                     resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
                     if resp.ok and resp.text.strip():
@@ -567,7 +418,6 @@ class ConfluenceReportGenerator:
                 attachments = self.confluence.get_attachments_from_content(dashboard_id, filename=name)
                 att = attachments['results'][0] if attachments['size'] > 0 else None
                 if att and 'download' in att['_links']:
-                    import requests
                     url = self.confluence.url + att['_links']['download']
                     resp = requests.get(url, auth=(self.confluence.username, self.confluence.password))
                     if resp.ok:
@@ -607,7 +457,6 @@ class ConfluenceReportGenerator:
         # 9. Detailed Reports (link to both runs if available)
         page_body += '<h3>Detailed Reports</h3>'
         page_body += '<ul>'
-        import re
         if first_results_dir:
             first_dir = os.path.basename(first_results_dir.rstrip('/'))
             m1 = re.search(r'(\d{8})_(\d{6})', first_dir)
@@ -628,7 +477,7 @@ class ConfluenceReportGenerator:
             update_data = {
                 'id': dashboard_id,
                 'type': 'page',
-                'title': MAIN_PAGE_TITLE,
+                'title': self.main_page_title,
                 'space': {'key': self.space_key},
                 'body': {
                     'storage': {
@@ -648,88 +497,3 @@ class ConfluenceReportGenerator:
             print(f"[DEBUG] Dashboard page update complete.")
         except Exception as e:
             print(f"[ERROR] Failed to update dashboard page: {e}")
-
-def cli():
-    print("[DEBUG] Entered cli() function.")
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Publish benchmark results to Confluence.")
-    parser.add_argument('first_results_dir', help='Results directory for the first run (left column)')
-    parser.add_argument('latest_results_dir', help='Results directory for the latest run (right column)')
-    parser.add_argument('git_commit_run1', help='Git commit hash or URL for run 1 (first run)')
-    parser.add_argument('git_commit_run2', help='Git commit hash or URL for run 2 (latest run)')
-    args = parser.parse_args()
-
-    generator = ConfluenceReportGenerator(CONFLUENCE_URL, USERNAME, API_TOKEN, SPACE_KEY)
-    print("[DEBUG] ConfluenceReportGenerator initialized.")
-
-    # Infer report title from latest_results_dir (e.g., 'Automated Report: 2025-09-17 20:16:54')
-    import re
-    import os
-    latest_dir = args.latest_results_dir.rstrip('/')
-    m = re.search(r'(\d{8})_(\d{6})', os.path.basename(latest_dir))
-    if m:
-        date_str = m.group(1)
-        time_str = m.group(2)
-        report_title = f"Automated Report: {date_str[:4]}-{date_str[4:6]}-{date_str[6:]} {time_str[:2]}:{time_str[2:4]}:{time_str[4:]}"
-    else:
-        report_title = f"Automated Report: {os.path.basename(latest_dir)}"
-
-
-    # Get dashboard page id to use as parent
-    dashboard_page = generator.confluence.get_page_by_title(SPACE_KEY, MAIN_PAGE_TITLE)
-    print("[DEBUG] Got dashboard page.")
-    if not dashboard_page:
-        print(f"[ERROR] Main dashboard page '{MAIN_PAGE_TITLE}' not found.")
-        raise Exception(f"Main dashboard page '{MAIN_PAGE_TITLE}' not found.")
-    dashboard_id = dashboard_page['id']
-    print(f"[DEBUG] Dashboard ID: {dashboard_id}")
-
-    # Debug and check existence for first run (first argument)
-    first_dir = args.first_results_dir.rstrip('/')
-    print(f"[DEBUG] First results dir: {first_dir}")
-    if not os.path.isdir(first_dir):
-        print(f"[ERROR] First results directory does not exist: {first_dir}")
-    else:
-        m1 = re.search(r'(\d{8})_(\d{6})', os.path.basename(first_dir))
-        if m1:
-            date_str = m1.group(1)
-            time_str = m1.group(2)
-            first_report_title = f"Automated Report: {date_str[:4]}-{date_str[4:6]}-{date_str[6:]} {time_str[:2]}:{time_str[2:4]}:{time_str[4:]}"
-        else:
-            first_report_title = f"Automated Report: {os.path.basename(first_dir)}"
-        print(f"[DEBUG] Creating detailed report for first run: {first_report_title}")
-        generator.create_detailed_report_page(first_dir, first_report_title, parent_id=dashboard_id, git_commit_url=args.git_commit_run1)
-        print("[DEBUG] Finished creating detailed report for first run.")
-
-    # Debug and check existence for latest run (second argument)
-    latest_dir = args.latest_results_dir.rstrip('/')
-    print(f"[DEBUG] Latest results dir: {latest_dir}")
-    if not os.path.isdir(latest_dir):
-        print(f"[ERROR] Latest results directory does not exist: {latest_dir}")
-    else:
-        m = re.search(r'(\d{8})_(\d{6})', os.path.basename(latest_dir))
-        if m:
-            date_str = m.group(1)
-            time_str = m.group(2)
-            report_title = f"Automated Report: {date_str[:4]}-{date_str[4:6]}-{date_str[6:]} {time_str[:2]}:{time_str[2:4]}:{time_str[4:]}"
-        else:
-            report_title = f"Automated Report: {os.path.basename(latest_dir)}"
-        print(f"[DEBUG] Creating detailed report for latest run: {report_title}")
-        generator.create_detailed_report_page(latest_dir, report_title, parent_id=dashboard_id, git_commit_url=args.git_commit_run2)
-        print("[DEBUG] Finished creating detailed report for latest run.")
-
-    # Always update dashboard summary
-    print("[DEBUG] Updating dashboard summary...")
-    generator.update_main_dashboard_summary(
-        first_results_dir=args.first_results_dir,
-        latest_results_dir=args.latest_results_dir,
-        report_title=report_title,
-        git_commit_run1=args.git_commit_run1,
-        git_commit_run2=args.git_commit_run2
-    )
-    print("✅ Dashboard summary updated.")
-
-
-if __name__ == "__main__":
-    cli()

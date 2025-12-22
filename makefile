@@ -32,11 +32,12 @@ PARENT_DIR  := $(shell dirname $(CURRENT_DIR))
 VENV_FOLDER = $(PARENT_DIR)/venv-motion-vectors
 
 install:
-	 mkdir -p $(VENV_FOLDER)
-	 mkdir -p $(EXTRACTOR_DIR)/$(EXECUTABLES_DIR)
-	 mkdir -p $(BENCHMARKING_DIR)/$(EXECUTABLES_DIR)
-	 mkdir -p $(UTILS_DIR)/$(EXECUTABLES_DIR)
-	 python3 -m venv $(VENV_FOLDER)
+	cp -n .env_template .env
+	mkdir -p $(VENV_FOLDER)
+	mkdir -p $(EXTRACTOR_DIR)/$(EXECUTABLES_DIR)
+	mkdir -p $(BENCHMARKING_DIR)/$(EXECUTABLES_DIR)
+	mkdir -p $(UTILS_DIR)/$(EXECUTABLES_DIR)
+	python3 -m venv $(VENV_FOLDER)
 	. $(VENV_FOLDER)/bin/activate && pip install -r requirements.txt
 
 all:
@@ -61,8 +62,11 @@ setup_ffmpeg:
 	$(call FFMPEG_BUILD,$(REGULAR_PREFIX)/FFmpeg)
 
 benchmark:
-	./run_full_benchmark.sh $(VIDEO_FILE) 5
+	./benchmarking/run_full_benchmark.sh $(VIDEO_FILE) 5
 
+publish:
+	./publishing/publish_report.sh
+	
 generate_video:
 	python ./video_generation/combine_motion_vectors_with_video.py $(VIDEO_FILE) $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)
 	python ./video_generation/generate_motion_vectors_video.py $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)

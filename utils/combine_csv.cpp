@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     }
 
     fclose(out);
-    printf("✅ Combined CSV: all_motion_vectors.csv created.\n");
+    printf("Combined CSV: all_motion_vectors.csv created.\n");
     return 0;
 }
 

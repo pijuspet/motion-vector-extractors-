@@ -202,9 +202,9 @@ int main(int argc, char** argv) {
     printf("🔍 Starting benchmarking on: %s\n", input.c_str());
     printf("   Streams per method: %d\n\n", par_streams);
     for (int i = 0; i < methods.size(); ++i) {
-        printf("▶️  Running: %s\n", methods[i].name.c_str());
+        printf("Running: %s\n", methods[i].name.c_str());
         results.push_back(run_benchmark_parallel(methods[i], input, par_streams, absolute_path, current_dir, venv_dir));
-        printf("✅ Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
+        printf("Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
                results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
     }
     print_complete_results(results, par_streams);

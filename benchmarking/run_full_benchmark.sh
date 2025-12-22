@@ -46,11 +46,6 @@ decode() {
     echo "Creating decoded_output.mp4 reference video using ffmpeg..."
     ffmpeg -y -i "$INPUT" -c copy -an "$RESULTS_DIR/decoded_output.mp4"
   fi
-  # Move combined_motion_vectors_with_video.mp4 if it exists
-  if [ -f combined_motion_vectors_with_video.mp4 ]; then
-    mv combined_motion_vectors_with_video.mp4 "$RESULTS_DIR/combined_motion_vectors_with_video.mp4"
-    echo "Combined motion vector and video output saved as $RESULTS_DIR/combined_motion_vectors_with_video.mp4."
-  fi
 }
 
 plot() {
@@ -79,8 +74,8 @@ generate_mv_comparison() {
 
 profiler() {
   echo "Running VTune profiler on extractor7 with motion_vectors_only=1..."
-
-  FFMPEG_LIB="${PWD}/ffmpeg-8.0/ffmpeg-8.0-ourversion/FFmpeg/lib"
+	. ~/intel/oneapi/setvars.sh --force
+  FFMPEG_LIB="${PWD}/ffmpeg/ffmpeg-8.0-custom/lib"
   export LD_LIBRARY_PATH="$FFMPEG_LIB/libavutil:$FFMPEG_LIB/libavformat:$LD_LIBRARY_PATH"
   vtune_dir="$RESULTS_DIR/vtune_results"
   mkdir -p "$vtune_dir"

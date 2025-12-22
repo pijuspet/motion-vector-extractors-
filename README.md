@@ -19,6 +19,12 @@ make setup_ffmpeg
 ```
 source ../venv-motion-vectors/bin/activate
 ```
+
+5. Setup vtune:
+```
+./intel-vtune-2025.5.0.40.sh
+```
+
 ## Running the Benchmark
 
 To run the full benchmark run:

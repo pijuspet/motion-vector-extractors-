@@ -1,7 +1,4 @@
 #!/bin/bash
-# Source the Python virtual environment for dependencies
-source motionvectors/bin/activate
-
 run_all() {
   echo "Running full benchmark and publishing results..."
   
@@ -27,14 +24,11 @@ run_all() {
   echo "  First git commit: $FIRST_GIT_COMMIT"
   echo "  Latest git commit: $LATEST_GIT_COMMIT"
   
-  # Call publish_confluence with correct parameter order
   publish_confluence "$FIRST_RESULTS_DIR" "$LATEST_RESULTS_DIR" "$FIRST_GIT_COMMIT" "$LATEST_GIT_COMMIT"
 }
 
-# --- Functions ---
-REPO_PATH="/home/loab/Documents/ffmpeg-8.0-ourversion"
-
 publish_git() {
+  REPO_PATH="${PWD}/ffmpeg"
   echo "Committing and pushing all changes to git in $REPO_PATH..."
   git -C "$REPO_PATH" add .
   git -C "$REPO_PATH" commit -m "Automated benchmark and report update $(date +'%Y-%m-%d %H:%M:%S')" || echo "Nothing to commit."
@@ -84,8 +78,6 @@ publish_confluence() {
   echo "Calling Python script with parameters..."
   python3 publish_to_confluence.py "$first_dir" "$latest_dir" "$git_commit_run1" "$git_commit_run2"
 
-  # Assume RESULTS_DIR is the absolute path to your results directory, e.g. /home/loab/Documents/motion-vector-extractors-/results/20250919_123456
-
   PUBLISHED_DIR="${latest_dir/\/results\//\/published\/}"
 
   mkdir -p "$(dirname "$PUBLISHED_DIR")"
@@ -94,19 +86,12 @@ publish_confluence() {
 }
 
 run_benchmark() {
+  CURRENT_DIR=$(pwd)
   echo "DEBUG: Starting benchmark..."
-  echo 0 | ./run_full_benchmark.sh ./videos/bigbunny.mp4 15
+  echo 0 | ./benchmarking/run_full_benchmark.sh "$CURRENT_DIR/videos/bigbunny.mp4" 15
   echo "DEBUG: Benchmark script finished."
 
-  CURRENT_DIR=$(pwd)
   RESULTS_DIR=$(ls -d "$CURRENT_DIR"/results/* | sort | tail -n 1)
-
-  echo "DEBUG: Filtered path: >$RESULTS_DIR<"
-  if [[ -z "$RESULTS_DIR" || ! -d "$RESULTS_DIR" ]]; then
-    echo "Error: Results directory '$RESULTS_DIR' does not exist."
-    exit 1
-  fi
-
   echo "$RESULTS_DIR"
 }
 
