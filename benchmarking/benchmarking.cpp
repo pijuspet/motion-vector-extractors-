@@ -210,4 +210,3 @@ int main(int argc, char** argv) {
     print_complete_results(results, par_streams);
     return 0;
 }
-

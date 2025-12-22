@@ -15,10 +15,10 @@ import confluence_report_generator as conf
 
 def cli():
     confluence_url = os.environ.get("CONFLUENCE_URL")
-    username = os.environ.get("CONFLUENCE_USER")
     space_key = os.environ.get("SPACE_KEY")
+    main_page_title = os.environ.get("MAIN_PAGE_TITLE")
+    username = os.environ.get("CONFLUENCE_USER")
     api_token = os.environ.get("CONFLUENCE_TOKEN")
-    api_token = os.environ.get("MAIN_PAGE_TITLE")
 
     print("[DEBUG] Entered cli() function.")
 

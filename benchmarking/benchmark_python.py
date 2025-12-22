@@ -1,3 +1,15 @@
+import subprocess
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import argparse
+import os
+import imgkit
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+import matplotlib.pyplot as plt
+
 def highlight_table(df):
     # Robust column matching: map expected keys to actual columns (case-insensitive, ignore minor differences)
     def find_col(possibles):
@@ -32,28 +44,14 @@ def save_highlighted_table_as_png(df, filename):
     styled = highlight_table(df)
     html_file = filename.replace('.png', '.html')
     styled.to_html(html_file)
-    import imgkit
     imgkit.from_file(html_file, filename)
     print(f"Saved highlighted table as {filename}")
-import subprocess
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import argparse
-import os
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
-
 
 def get_plots_folder(folder):
     os.makedirs(folder, exist_ok=True)
     return folder
 
 def pretty_table(df, title, filename, plots_folder, col_width=2.8, row_height=0.8):
-    import matplotlib.pyplot as plt
-    import numpy as np
-
     n_rows, n_cols = df.shape
     fig, ax = plt.subplots(figsize=(col_width * n_cols, row_height * (n_rows + 1)))
     ax.axis('off')
@@ -416,4 +414,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     plots_folder = get_plots_folder(args.plots_folder)
     run_all(args.input, args.streams, args.exe, args.project_absolute_path, args.results_absolute_path, args.venv_dir, plots_folder)
-
