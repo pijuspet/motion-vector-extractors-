@@ -1,42 +1,80 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <inttypes.h>
 #include "writer.h"
 
+#include <inttypes.h>
+
 extern "C" {
-    #include <libavcodec/avcodec.h>
-    #include <libavformat/avformat.h>
-    #include <libavutil/motion_vector.h>
-    #include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/motion_vector.h>
+#include <libavutil/opt.h>
 }
 
 int main(int argc, char** argv) {
+    AVFormatContext* fmt_ctx = NULL;
+    AVCodecContext* dec_ctx = NULL;
+    AVPacket* pkt = NULL;
+    AVFrame* frame = NULL;
+    int video_stream_index = -1;
+    int frame_num = 0;
+    int do_print = 1;
+    std::string file_name = "";
+
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <input>\n", argv[0]);
         return -1;
     }
-
-    std::string file_name = "";
-    int do_print = 1;
-    if (argc >= 3) do_print = atoi(argv[2]);
-    if (argc >= 4) file_name = argv[3];
+    if (argc >= 3)
+        do_print = atoi(argv[2]);
+    if (argc >= 4)
+        file_name = argv[3];
 
     avformat_network_init();
 
-    AVFormatContext* fmt_ctx = NULL;
     if (avformat_open_input(&fmt_ctx, argv[1], NULL, NULL) < 0) {
         fprintf(stderr, "Could not open input file.\n");
         return -1;
     }
 
-    avformat_find_stream_info(fmt_ctx, NULL);
+    if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
+        fprintf(stderr, "Could not find stream info.\n");
+        return -1;
+    }
 
-    int video_stream_index = -1;
     for (unsigned i = 0; i < fmt_ctx->nb_streams; i++) {
         if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_stream_index = i;
             break;
         }
+    }
+
+    const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
+    dec_ctx = avcodec_alloc_context3(codec);
+    if (!dec_ctx) {
+        fprintf(stderr, "Could not allocate codec context.\n");
+        return -1;
+    }
+    
+    if (avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
+        fprintf(stderr, "Failed to copy codec parameters to codec context.\n");
+        return -1;
+    }
+    
+    dec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
+    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
+
+    if (avcodec_open2(dec_ctx, codec, NULL) < 0) {
+        fprintf(stderr, "Could not open codec.\n");
+        return -1;
+    }
+
+    pkt = av_packet_alloc();
+    frame = av_frame_alloc();
+
+    if (!pkt || !frame) {
+        fprintf(stderr, "Could not allocate packet or frame.\n");
+        return -1;
     }
 
     MotionVectorWriter writer;
@@ -47,40 +85,44 @@ int main(int argc, char** argv) {
         }
     }
 
-    const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
-    AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
-    avcodec_parameters_to_context(codec_ctx, fmt_ctx->streams[video_stream_index]->codecpar);
-
-    codec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
-    av_opt_set_int(codec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
-
-    avcodec_open2(codec_ctx, codec, NULL);
-
-    AVPacket* pkt = av_packet_alloc();
-    AVFrame* frame = av_frame_alloc();
-
-    int frame_idx = 0;
-
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_index) {
-            avcodec_send_packet(codec_ctx, pkt);
-            while (avcodec_receive_frame(codec_ctx, frame) == 0) {
-                AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-                if (sd) {
-                    if (do_print)
-                        writer.Write(frame_idx, (const AVMotionVector*)sd->data, 8, sd->size);
+            int ret = avcodec_send_packet(dec_ctx, pkt);
+            if (ret < 0) {
+                fprintf(stderr, "Error sending packet for decoding: %d\n", ret);
+                break;
+            }
+
+            while (ret >= 0) {
+                ret = avcodec_receive_frame(dec_ctx, frame);
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                    break;
+                else if (ret < 0) {
+                    fprintf(stderr, "Error during decoding.\n");
+                    break;
                 }
+
+                AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
+                 if (do_print) {
+                    if (sd && sd->data && sd->size > 0) {
+                        writer.Write(frame_num, (const AVMotionVector*)sd->data, 8, sd->size);
+                    }
+                    else {
+                        fprintf(stderr, "frame %d: no motion vectors\n", frame_num);
+                    }
+                }
+                
                 av_frame_unref(frame);
-                frame_idx++;
+                frame_num++;
             }
         }
         av_packet_unref(pkt);
     }
 
+    avcodec_free_context(&dec_ctx);
+    avformat_close_input(&fmt_ctx);
     av_frame_free(&frame);
     av_packet_free(&pkt);
-    avcodec_free_context(&codec_ctx);
-    avformat_close_input(&fmt_ctx);
     return 0;
 }
 

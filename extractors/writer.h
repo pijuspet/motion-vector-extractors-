@@ -9,7 +9,6 @@ extern "C" {
     #include <libavcodec/avcodec.h>
 }
 
-
 class MotionVectorWriter {
 public:
     ~MotionVectorWriter() {
@@ -22,6 +21,3 @@ private:
     std::ofstream file;
     int frame_num = 0; // Current frame number   
 };
-
-
-

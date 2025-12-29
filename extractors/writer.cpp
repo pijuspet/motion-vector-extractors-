@@ -56,7 +56,7 @@ int MotionVectorWriter::Write(int frame_num, const AVMotionVector* mvs,
             << mv->motion_y << "," << mv->motion_scale << "\n";
     }
 
-    return 0; // Success
+    return 0;
 }
 
 void MotionVectorWriter::Close() {

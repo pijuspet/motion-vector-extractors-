@@ -1,30 +1,34 @@
-extern "C" {
-    #include <libavutil/motion_vector.h>
-    #include <libavutil/opt.h>
-    #include <libavformat/avformat.h>
-    #include <libavcodec/avcodec.h>
-}
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h> // for PRIx64
+
 #include "writer.h"
 
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/motion_vector.h>
+#include <libavutil/opt.h>
+}
+
 int main(int argc, char** argv) {
+    AVFormatContext* fmt_ctx = NULL;
+    AVCodecContext* dec_ctx = NULL;
+    AVPacket* pkt = NULL;
+    AVFrame* frame = NULL;
+    int video_stream_idx = -1;
+    int frame_num = 0;
+    int do_print = 1;
+    std::string file_name = "";
+
     if (argc < 2) {
         fprintf(stderr, "usage: %s rtsp://host:port/stream\n", argv[0]);
         return 1;
     }
-
-    std::string file_name = "";
-    int do_print = 1;
-    if (argc >= 3) do_print = atoi(argv[2]);
-    if (argc >= 4) file_name = argv[3];
-
-    AVFormatContext* fmt_ctx = NULL;
-    AVCodecContext* dec_ctx = NULL;
-    int video_stream_idx = -1, frame_count = 0;
-    AVPacket* pkt = av_packet_alloc();
-    AVFrame* frame = av_frame_alloc();
+    if (argc >= 3)
+        do_print = atoi(argv[2]);
+    if (argc >= 4)
+        file_name = argv[3];
 
     // Open RTSP input with options
     AVDictionary* opts = NULL;
@@ -60,7 +64,7 @@ int main(int argc, char** argv) {
     dec_ctx = avcodec_alloc_context3(dec);
     avcodec_parameters_to_context(dec_ctx, video_stream->codecpar);
 
-    // ✅ Use patched FFmpeg: motion_vectors_only + side data export
+    // Use patched FFmpeg: motion_vectors_only + side data export
     dec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
     av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0);
 
@@ -72,6 +76,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    pkt = av_packet_alloc();
+    frame = av_frame_alloc();
+
+    if (!pkt || !frame) {
+        fprintf(stderr, "Could not allocate packet or frame.\n");
+        return -1;
+    }
+
     MotionVectorWriter writer;
     if (do_print) {
         if (!writer.Open(file_name)) {
@@ -79,7 +91,6 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-
 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_idx) {
@@ -90,11 +101,15 @@ int main(int argc, char** argv) {
 
             while (avcodec_receive_frame(dec_ctx, frame) >= 0) {
                 AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-                if (sd) {
-                    if (do_print)
-                        writer.Write(frame_count, (const AVMotionVector*)sd->data, 2, sd->size);
+                if (do_print) {
+                    if (sd && sd->data && sd->size > 0) {
+                        writer.Write(frame_num, (const AVMotionVector*)sd->data, 2, sd->size);
+                    }
+                    else {
+                        fprintf(stderr, "frame %d: no motion vectors\n", frame_num);
+                    }
                 }
-                frame_count++;
+                frame_num++;
                 av_frame_unref(frame);
             }
         }
@@ -105,7 +120,6 @@ int main(int argc, char** argv) {
     avformat_close_input(&fmt_ctx);
     av_frame_free(&frame);
     av_packet_free(&pkt);
-
     return 0;
 }
 
