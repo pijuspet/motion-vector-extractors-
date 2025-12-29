@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    //region video stream 
     for (unsigned i = 0; i < fmt_ctx->nb_streams; i++) {
         if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_stream_index = i;
@@ -49,15 +50,21 @@ int main(int argc, char** argv) {
     }
 
     if (video_stream_index < 0) {
-        fprintf(stderr, "No video stream found.\n");
+        fprintf(stderr, "Could not find video stream\n");
         return -1;
     }
 
-    const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
+    AVStream* video_stream = fmt_ctx->streams[video_stream_index];
+    //endregion
+
+    //region codec
+    const AVCodec* codec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    
     if (!codec) {
         fprintf(stderr, "Codec not found.\n");
         return -1;
     }
+    //endregion
 
     dec_ctx = avcodec_alloc_context3(codec);
     if (!dec_ctx) {
@@ -65,18 +72,20 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    if (avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
+    if (avcodec_parameters_to_context(dec_ctx, video_stream->codecpar) < 0) {
         fprintf(stderr, "Failed to copy codec parameters to codec context.\n");
         return -1;
     }
 
-    // Enable multi-threaded decoding
-    // codec_ctx->thread_count = 1; // set in c version
+    //region flag setting
+    AVDictionary* opts = NULL;
     dec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
+    // dec_ctx->thread_count = 1; // set in c version
     dec_ctx->export_side_data |= AV_CODEC_EXPORT_DATA_MVS;
-    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
+    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0); // CUSTOM PATCHED FLAG
+    //endregion
 
-    if (avcodec_open2(dec_ctx, codec, NULL) < 0) {
+    if (avcodec_open2(dec_ctx, codec, &opts) < 0) {
         fprintf(stderr, "Could not open codec.\n");
         return -1;
     }
@@ -105,7 +114,6 @@ int main(int argc, char** argv) {
                 break;
             }
 
-            // Receive all available frames
             while (ret >= 0) {
                 ret = avcodec_receive_frame(dec_ctx, frame);
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
@@ -150,4 +158,3 @@ int main(int argc, char** argv) {
     av_packet_free(&pkt);
     return 0;
 }
-

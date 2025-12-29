@@ -35,15 +35,15 @@ struct BenchmarkResult {
 };
 
 std::vector<MethodInfo> methods = {
-        {"FFMPEG decode frames", "/extractors/executables/extractor6", "method6_output", 1},
-        {"FFmpeg MV", "/extractors/executables/extractor0", "method0_output", 1},
-        {"Same Code Not Patched", "/extractors/executables/extractor1", "method1_output", 1},
-        {"Optimized MV-Only - FFMPEG Patched", "/extractors/executables/extractor2", "method2_output", 1},
-        {"Custom H.264 Parser", "/extractors/executables/extractor3", "method3_output", 0},
-        {"LIVE555 Parser", "/extractors/executables/extractor4", "method4_output", 0},
-        {"Python mv-extractor", "/extractors/executables/extractor5", "method5_output", 1},
-        {"FFMPEG Patched - Minimal", "/extractors/executables/extractor7", "method7_output", 1},
-        {"FFMPEG Patched!", "/extractors/executables/extractor8", "method8_output", 1}
+    {"Original FFmpeg MV extraction", "/extractors/executables/extractor0", "method0_output", 1}, // Original FFmpeg, takes out motion vectors out of video
+    {"Same Code Not Patched", "/extractors/executables/extractor1", "method1_output", 1}, // Original FFmpeg, but custom flags are passed? ask Louise
+    {"Custom FFmpeg MV-Only - FFMPEG Patched", "/extractors/executables/extractor2", "method2_output", 1}, // Custom FFmpeg RTSP protocol
+    // {"Custom H.264 Parser", "/extractors/executables/extractor3", "method3_output", 0}, // no clue what was the intention of this (not going deeper)
+    // {"LIVE555 Parser", "/extractors/executables/extractor4", "method4_output", 0}, // no clue what was the intention of this (not going deeper)
+    {"Python mv-extractor", "/extractors/executables/extractor5", "method5_output", 1}, // super slow, remove in future
+    // {"FFMPEG decode frames", "/extractors/executables/extractor6", "method6_output", 1}, // why this one is used? produces no csv
+    {"Custom FFmpeg - Flush decoder", "/extractors/executables/extractor7", "method7_output", 1},
+    {"Custom FFmeg", "/extractors/executables/extractor8", "method8_output", 1}
 };
 
 double now_ms() {
@@ -125,9 +125,11 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
         else {
             if (WIFEXITED(statuses[i])) {
                 printf("Child %d (pid %d) exited with code %d\n", i, pids[i], WEXITSTATUS(statuses[i]));
-            } else if (WIFSIGNALED(statuses[i])) {
+            }
+            else if (WIFSIGNALED(statuses[i])) {
                 printf("Child %d (pid %d) killed by signal %d\n", i, pids[i], WTERMSIG(statuses[i]));
-            } else {
+            }
+            else {
                 printf("Child %d (pid %d) ended abnormally\n", i, pids[i]);
             }
         }
@@ -170,20 +172,20 @@ void print_complete_results(const std::vector<BenchmarkResult>& r, int par_strea
     printf("                              Streams per Method: %d\n", par_streams);
     printf("==========================================================================================================\n\n");
     printf("%-30s | %-12s | %-6s | %-10s | %-9s | %-12s | %-8s | %s\n",
-           "Method", "Time/Frame", "FPS", "CPU Usage", "Mem Δ KB", "Total MVs", "Frames", "High Profile");
+        "Method", "Time/Frame", "FPS", "CPU Usage", "Mem Δ KB", "Total MVs", "Frames", "High Profile");
     printf("------------------------------------------------------------------------------------------------------------\n");
 
     for (int i = 0; i < r.size(); i++) {
         printf("%-30s | %10.2f ms | %6.1f | %8.1f%% | %9ld | %10d | %8d | %s\n",
-               r[i].name.c_str(), r[i].avg_time_per_frame_ms, r[i].throughput_fps,
-               r[i].cpu_usage_percent, r[i].memory_peak_kb,
-               r[i].total_motion_vectors, r[i].frame_count,
-               r[i].supports_high_profile ? "✅" : "❌");
+            r[i].name.c_str(), r[i].avg_time_per_frame_ms, r[i].throughput_fps,
+            r[i].cpu_usage_percent, r[i].memory_peak_kb,
+            r[i].total_motion_vectors, r[i].frame_count,
+            r[i].supports_high_profile ? "✅" : "❌");
     }
 }
 
 int main(int argc, char** argv) {
-     if (argc < 2 || argc > 6) {
+    if (argc < 2 || argc > 6) {
         fprintf(stderr, "Usage: %s <video_file_or_rtsp_url> [streams]\n", argv[0]);
         return 1;
     }
@@ -205,7 +207,7 @@ int main(int argc, char** argv) {
         printf("Running: %s\n", methods[i].name.c_str());
         results.push_back(run_benchmark_parallel(methods[i], input, par_streams, absolute_path, current_dir, venv_dir));
         printf("Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
-               results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
+            results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
     }
     print_complete_results(results, par_streams);
     return 0;

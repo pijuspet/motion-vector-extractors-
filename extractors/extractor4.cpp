@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     int video_stream_index = -1;
     int frame_num = 0;
 
-    if (argc != 2) {
+    if (argc <= 2) {
         fprintf(stderr, "Usage: %s rtsp://url_or_video.mp4\n", argv[0]);
         return 1;
     }
@@ -21,18 +21,18 @@ int main(int argc, char** argv) {
     avformat_network_init();
 
     if (avformat_open_input(&fmt_ctx, argv[1], NULL, NULL) < 0) {
-        fprintf(stderr, "Error opening input: %s\n", argv[1]);
-        return 1;
+        fprintf(stderr, "Could not open input file.\n");
+        return -1;
     }
 
     if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
-        fprintf(stderr, "Failed to find stream info.\n");
-        return 1;
+        fprintf(stderr, "Could not find stream info.\n");
+        return -1;
     }
 
     video_stream_index = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
     if (video_stream_index < 0) {
-        fprintf(stderr, "No video stream found.\n");
+        fprintf(stderr, "Could not find video stream\n");
         return 1;
     }
 
@@ -61,7 +61,6 @@ int main(int argc, char** argv) {
 
             frame_num++;
         }
-
         av_packet_unref(pkt);
     }
 
@@ -69,4 +68,3 @@ int main(int argc, char** argv) {
     av_packet_free(&pkt);
     return 0;
 }
-

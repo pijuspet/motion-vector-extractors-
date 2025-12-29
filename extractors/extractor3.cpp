@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Could not open input file.\n");
         return -1;
     }
+    
     if (avformat_find_stream_info(fmt_ctx, NULL) < 0) {
         fprintf(stderr, "Could not find stream info.\n");
         return -1;

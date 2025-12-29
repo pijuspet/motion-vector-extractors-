@@ -2,8 +2,8 @@
 #include "writer.h"
 
 extern "C" {
-#include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 #include <libavutil/motion_vector.h>
 }
 
@@ -18,8 +18,8 @@ int main(int argc, char** argv) {
     std::string file_name = "";
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <input> [print]\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s <input>\n", argv[0]);
+        return -1;
     }
     if (argc >= 3)
         do_print = atoi(argv[2]);
@@ -38,24 +38,38 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    //region video stream 
     video_stream_index = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+
     if (video_stream_index < 0) {
         fprintf(stderr, "Could not find video stream\n");
-        return 1;
+        return -1;
     }
 
-    dec_ctx = avcodec_alloc_context3(NULL);
+    AVStream* video_stream = fmt_ctx->streams[video_stream_index];
+    //endregion
+
+    //region codec
+    const AVCodec* codec = NULL;
+    //endregion
+
+    dec_ctx = avcodec_alloc_context3(codec);
     if (!dec_ctx) {
         fprintf(stderr, "Could not allocate codec context.\n");
         return -1;
     }
 
-    if (avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
+    if (avcodec_parameters_to_context(dec_ctx, video_stream->codecpar) < 0) {
         fprintf(stderr, "Failed to copy codec parameters to codec context.\n");
         return -1;
     }
-    // dec_ctx->thread_count = 1; in c
-    AVDictionary* opts = NULL; av_dict_set(&opts, "flags2", "+export_mvs", 0);
+
+    //region flag setting
+    AVDictionary* opts = NULL;
+    dec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
+    // dec_ctx->thread_count = 1; // set in c version
+    av_dict_set(&opts, "flags2", "+export_mvs", 0);
+    //endregion
 
     if (avcodec_open2(dec_ctx, avcodec_find_decoder(dec_ctx->codec_id), &opts) < 0) {
         fprintf(stderr, "Could not open codec.\n");

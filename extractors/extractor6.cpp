@@ -1,8 +1,8 @@
 #include <stdio.h>
 
 extern "C" {
-#include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 }
 
 int main(int argc, char** argv) {
@@ -13,7 +13,10 @@ int main(int argc, char** argv) {
     int video_stream_index = -1;
     int frame_num = 0;
 
-    if (argc < 2) { printf("Usage: %s <input>\n", argv[0]); return 1; }
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input>\n", argv[0]);
+        return -1;
+    }
 
     avformat_network_init();
 
@@ -27,24 +30,39 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    //region video stream 
     video_stream_index = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+    
     if (video_stream_index < 0) {
         fprintf(stderr, "Could not find video stream\n");
-        return 1;
+        return -1;
     }
 
-    dec_ctx = avcodec_alloc_context3(NULL);
+    AVStream* video_stream = fmt_ctx->streams[video_stream_index];
+    //endregion
+
+    //region codec
+    const AVCodec* codec = NULL;
+    //endregion
+
+    dec_ctx = avcodec_alloc_context3(codec);
     if (!dec_ctx) {
         fprintf(stderr, "Could not allocate codec context.\n");
         return -1;
     }
 
-    // dec_ctx->thread_count = 1; extractor6.c
-    if (avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
+    if (avcodec_parameters_to_context(dec_ctx, video_stream->codecpar) < 0) {
         fprintf(stderr, "Failed to copy codec parameters to codec context.\n");
         return -1;
     }
-    if (avcodec_open2(dec_ctx, avcodec_find_decoder(dec_ctx->codec_id), NULL) < 0) {
+
+    //region flag setting
+    AVDictionary* opts = NULL;
+    dec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
+    // dec_ctx->thread_count = 1; // set in c version
+    //endregion
+
+    if (avcodec_open2(dec_ctx, avcodec_find_decoder(dec_ctx->codec_id), &opts) < 0) {
         fprintf(stderr, "Could not open codec.\n");
         return -1;
     }
@@ -59,15 +77,26 @@ int main(int argc, char** argv) {
 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_index) {
-            avcodec_send_packet(dec_ctx, pkt);
-            while (avcodec_receive_frame(dec_ctx, frame) >= 0) {
-                frame_num++;
+            int ret = avcodec_send_packet(dec_ctx, pkt);
+            if (ret < 0) {
+                fprintf(stderr, "Error sending packet for decoding: %d\n", ret);
+                break;
+            }
+
+            while (ret >= 0) {
+                ret = avcodec_receive_frame(dec_ctx, frame);
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+                    break;
+                else if (ret < 0) {
+                    fprintf(stderr, "Error during decoding.\n");
+                    break;
+                }
                 av_frame_unref(frame);
+                frame_num++;
             }
         }
         av_packet_unref(pkt);
     }
-
     printf("Decoded %d frames\n", frame_num);
 
     avcodec_free_context(&dec_ctx);
@@ -76,4 +105,3 @@ int main(int argc, char** argv) {
     av_packet_free(&pkt);
     return 0;
 }
-

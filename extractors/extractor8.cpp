@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    //region video stream
     for (unsigned i = 0; i < fmt_ctx->nb_streams; i++) {
         if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_stream_index = i;
@@ -49,22 +50,43 @@ int main(int argc, char** argv) {
         }
     }
 
-    const AVCodec* codec = avcodec_find_decoder(fmt_ctx->streams[video_stream_index]->codecpar->codec_id);
+    if (video_stream_index < 0) {
+        fprintf(stderr, "Could not find video stream\n");
+        return -1;
+    }
+
+    AVStream* video_stream = fmt_ctx->streams[video_stream_index];
+    //endregion
+
+    //region codec
+    const AVCodec* codec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    
+    if (!codec) {
+        fprintf(stderr, "Codec not found.\n");
+        return -1;
+    }
+    //endregion
+
     dec_ctx = avcodec_alloc_context3(codec);
     if (!dec_ctx) {
         fprintf(stderr, "Could not allocate codec context.\n");
         return -1;
     }
-    
-    if (avcodec_parameters_to_context(dec_ctx, fmt_ctx->streams[video_stream_index]->codecpar) < 0) {
+
+    if (avcodec_parameters_to_context(dec_ctx, video_stream->codecpar) < 0) {
         fprintf(stderr, "Failed to copy codec parameters to codec context.\n");
         return -1;
     }
-    
-    dec_ctx->export_side_data = AV_CODEC_EXPORT_DATA_MVS;
-    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0);  // CUSTOM PATCHED FLAG
 
-    if (avcodec_open2(dec_ctx, codec, NULL) < 0) {
+    //region flag setting
+    AVDictionary* opts = NULL;
+    dec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
+    // dec_ctx->thread_count = 1; // set in c version
+    dec_ctx->export_side_data |= AV_CODEC_EXPORT_DATA_MVS;
+    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0); // CUSTOM PATCHED FLAG
+    //endregion
+
+    if (avcodec_open2(dec_ctx, codec, &opts) < 0) {
         fprintf(stderr, "Could not open codec.\n");
         return -1;
     }
@@ -103,7 +125,7 @@ int main(int argc, char** argv) {
                 }
 
                 AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-                 if (do_print) {
+                if (do_print) {
                     if (sd && sd->data && sd->size > 0) {
                         writer.Write(frame_num, (const AVMotionVector*)sd->data, 8, sd->size);
                     }
@@ -111,7 +133,7 @@ int main(int argc, char** argv) {
                         fprintf(stderr, "frame %d: no motion vectors\n", frame_num);
                     }
                 }
-                
+
                 av_frame_unref(frame);
                 frame_num++;
             }
@@ -125,4 +147,3 @@ int main(int argc, char** argv) {
     av_packet_free(&pkt);
     return 0;
 }
-
