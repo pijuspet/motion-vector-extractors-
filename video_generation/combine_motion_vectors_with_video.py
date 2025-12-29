@@ -148,10 +148,10 @@ if __name__ == "__main__":
 
     all_motion_vectors = mv.load_motion_vectors(csv_file_path)
 
-    # Filter for specific extractors (0 and 7)
+    # Filter for specific extractors (0 and 6)
     available_method_ids = sorted(all_motion_vectors["method_id"].unique())
     selected_method_ids = [
-        method_id for method_id in available_method_ids if method_id in [0, 7]
+        method_id for method_id in available_method_ids if method_id in [0, 6]
     ]
     motion_dataframes_list = [
         all_motion_vectors[all_motion_vectors["method_id"] == method_id]

@@ -40,10 +40,9 @@ std::vector<MethodInfo> methods = {
     {"Custom FFmpeg MV-Only - FFMPEG Patched", "/extractors/executables/extractor2", "method2_output", 1}, // Custom FFmpeg RTSP protocol
     {"Custom H.264 Parser", "/extractors/executables/extractor3", "method3_output", 0}, // no clue what was the intention of this (not going deeper)
     {"LIVE555 Parser", "/extractors/executables/extractor4", "method4_output", 0}, // no clue what was the intention of this (not going deeper)
-    {"Python mv-extractor", "/extractors/executables/extractor5", "method5_output", 1}, // super slow, remove in future
-    // {"FFMPEG decode frames", "/extractors/executables/extractor6", "method6_output", 1}, // why this one is used? produces no csv
-    {"Custom FFmpeg - Flush decoder", "/extractors/executables/extractor7", "method7_output", 1},
-    {"Custom FFmeg", "/extractors/executables/extractor8", "method8_output", 1}
+    // {"FFMPEG decode frames", "/extractors/executables/extractor5", "method5_output", 1}, // why this one is used? produces no csv
+    {"Custom FFmpeg - Flush decoder", "/extractors/executables/extractor6", "method6_output", 1},
+    {"Custom FFmpeg", "/extractors/executables/extractor7", "method7_output", 1}
 };
 
 double now_ms() {
@@ -82,7 +81,7 @@ void parse_csv(const std::string& fname, int* frames, int* mvs) {
     }
 }
 
-BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& input, int par_streams, std::string& absolute_path, std::string& current_dir, std::string& venv_dir) {
+BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& video_file, int par_streams, std::string& absolute_path, std::string& current_dir) {
     BenchmarkResult r;
     r.name = m.name;
     r.supports_high_profile = m.supports_high_profile;
@@ -105,11 +104,11 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& i
 
             std::string exe_str = current_dir + m.exe;
             char* exe = const_cast<char*>(exe_str.c_str());
-            char* arg1 = const_cast<char*>(input.c_str());
+            char* video_file_input = const_cast<char*>(video_file.c_str());
 
-            execl(exe, exe, arg1, "1", csv_filename, current_dir.c_str(), venv_dir.c_str(), nullptr);
+            execl(exe, exe, video_file_input, "1", csv_filename, nullptr);
 
-            fprintf(stderr, "Child %d: exec failed for command %s %s: %s\n", i, m.exe.c_str(), input.c_str(), strerror(errno));
+            fprintf(stderr, "Child %d: exec failed for command %s %s: %s\n", i, m.exe.c_str(), video_file.c_str(), strerror(errno));
             exit(127);
         }
         else {
@@ -189,10 +188,9 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Usage: %s <video_file_or_rtsp_url> [streams]\n", argv[0]);
         return 1;
     }
-    std::string input = argv[1];
+    std::string video_file = argv[1];
     std::string absolute_path = argv[3];
     std::string current_dir = argv[4];
-    std::string venv_dir = argv[5];
     int par_streams = 1;
     if (argc == 3)
         par_streams = std::atoi(argv[2]);
@@ -201,11 +199,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::vector<BenchmarkResult> results;
-    printf("🔍 Starting benchmarking on: %s\n", input.c_str());
+    printf("🔍 Starting benchmarking on: %s\n", video_file.c_str());
     printf("   Streams per method: %d\n\n", par_streams);
     for (int i = 0; i < methods.size(); ++i) {
         printf("Running: %s\n", methods[i].name.c_str());
-        results.push_back(run_benchmark_parallel(methods[i], input, par_streams, absolute_path, current_dir, venv_dir));
+        results.push_back(run_benchmark_parallel(methods[i], video_file, par_streams, absolute_path, current_dir));
         printf("Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
             results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
     }

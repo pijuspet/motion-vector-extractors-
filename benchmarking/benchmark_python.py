@@ -23,7 +23,6 @@ def run_benchmark(
     streams,
     project_absolute_path,
     results_absolute_path,
-    venv_dir,
     exe="./benchmark_all_9",
 ):
     print(f"Running benchmark with {streams} streams...")
@@ -35,7 +34,6 @@ def run_benchmark(
             str(streams),
             results_absolute_path,
             project_absolute_path,
-            venv_dir,
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -94,7 +92,6 @@ def run_all(
     exe_path,
     project_absolute_path,
     results_absolute_path,
-    venv_dir,
     plots_folder,
 ):
     stream_steps = generate_stream_runs(max_streams)
@@ -107,7 +104,6 @@ def run_all(
             s,
             project_absolute_path,
             results_absolute_path,
-            venv_dir,
             exe=exe_path,
         )
         if df.empty:
@@ -123,7 +119,7 @@ def run_all(
     full_df.to_csv(csv_path, index=False)
     print(f"Saved complete data table: {csv_path}")
 
-    df_hp = full_df[full_df["high_profile"] == 1].copy()
+    df_hp = full_df[full_df["high_profile"] == "1"].copy()
     if df_hp.empty:
         print("No high profile algorithms found in results!")
         return full_df
@@ -403,9 +399,6 @@ if __name__ == "__main__":
         "results_absolute_path", nargs="?", default="plots", help="results"
     )
     parser.add_argument(
-        "venv_dir", nargs="?", default="plots", help="Output folder for plots and PPTX"
-    )
-    parser.add_argument(
         "plots_folder",
         nargs="?",
         default="plots",
@@ -422,6 +415,5 @@ if __name__ == "__main__":
         args.exe,
         args.project_absolute_path,
         args.results_absolute_path,
-        args.venv_dir,
         plots_folder,
     )

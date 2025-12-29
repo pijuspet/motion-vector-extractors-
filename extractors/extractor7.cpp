@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "writer.h"
 
 #include <inttypes.h>
@@ -106,9 +107,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // for debugging purposes
-    fprintf(stderr, "FFmpeg version: %s\n", av_version_info());
-
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_index) {
             int ret = avcodec_send_packet(dec_ctx, pkt);
@@ -141,18 +139,6 @@ int main(int argc, char** argv) {
             }
         }
         av_packet_unref(pkt);
-    }
-
-    // Flush decoder
-    avcodec_send_packet(dec_ctx, NULL);
-    while (avcodec_receive_frame(dec_ctx, frame) == 0) {
-        AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
-        if (sd) {
-            if (do_print)
-                writer.Write(frame_num, (const AVMotionVector*)sd->data, 7, sd->size);
-        }
-        av_frame_unref(frame);
-        frame_num++;
     }
 
     avcodec_free_context(&dec_ctx);

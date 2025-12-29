@@ -9,10 +9,6 @@ mkdir -p "$RESULTS_BASE"
 RUN_TIMESTAMP=$(date +"%Y%m%d_%H%M")
 RESULTS_DIR="$RESULTS_BASE/$RUN_TIMESTAMP"
 mkdir -p "$RESULTS_DIR"
-export RESULTS_DIR
-
-PARENT_DIR=$(dirname $CURRENT_DIR)
-VENV_FOLDER="$PARENT_DIR/venv-motion-vectors"
 
 build() {
   echo "Building all extractors and tools..."
@@ -25,12 +21,12 @@ build() {
 }
 
 extract() {
-  if [[ -z "$INPUT" ]]; then
-    echo "Extraction step skipped: set INPUT environment variable to input file."
+  if [[ -z "$VIDEO_FILE" ]]; then
+    echo "Extraction step skipped: set VIDEO_FILE environment variable to input file."
     return 1
   fi
   echo "Running 9-method benchmark suite..."
-  (cd benchmarking/executables; ./benchmark_all_9 "$INPUT" "$INPUT1" "$RESULTS_DIR" "$CURRENT_DIR" "$VENV_FOLDER")
+  (cd benchmarking/executables; ./benchmark_all_9 "$VIDEO_FILE" "$STREAMS" "$RESULTS_DIR" "$CURRENT_DIR")
   echo "Benchmarks complete."
 }
 
@@ -44,27 +40,27 @@ combine() {
 decode() {
   if [ ! -f "$RESULTS_DIR/decoded_output.mp4" ]; then
     echo "Creating decoded_output.mp4 reference video using ffmpeg..."
-    ffmpeg -y -i "$INPUT" -c copy -an "$RESULTS_DIR/decoded_output.mp4"
+    ffmpeg -y -i "$VIDEO_FILE" -c copy -an "$RESULTS_DIR/decoded_output.mp4"
   fi
 }
 
 plot() {
-  if [[ -z "$INPUT" ]]; then
-    echo "Plotting step skipped: set INPUT argument."
+  if [[ -z "$VIDEO_FILE" ]]; then
+    echo "Plotting step skipped: set VIDEO_FILE argument."
     return 1
   fi
-  if [[ -z "$INPUT1" ]]; then
+  if [[ -z "$STREAMS" ]]; then
     echo "Streams count not specified; defaulting to 1."
-    INPUT1=1
+    STREAMS=1
   fi
   mkdir -p "$RESULTS_DIR/plots"
   echo "Running Python benchmark visualization and PPT generation..."
-  (cd benchmarking; python3 benchmark_python.py "$INPUT" "$INPUT1" "$CURRENT_DIR" "$RESULTS_DIR" "$VENV_FOLDER" "$RESULTS_DIR/plots")
+  (cd benchmarking; python3 benchmark_python.py "$VIDEO_FILE" "$STREAMS" "$CURRENT_DIR" "$RESULTS_DIR" "$RESULTS_DIR/plots")
   echo "Plotting complete. Plots and PPTX in $RESULTS_DIR/plots."
 }
 
 generate_mv_comparison() {
-  (cd utils; python3 mv_compare.py "$RESULTS_DIR/method0_output_0.csv" "$RESULTS_DIR/method7_output_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt")
+  (cd utils; python3 mv_compare.py "$RESULTS_DIR/method0_output_0.csv" "$RESULTS_DIR/method6_output_0.csv" 10 100 "$RESULTS_DIR/mv_comparison_result.txt")
   if [[ -f "$RESULTS_DIR/mv_comparison_result.txt" ]]; then
     echo "Motion vector comparison result saved to $RESULTS_DIR/mv_comparison_result.txt."
   else
@@ -73,20 +69,18 @@ generate_mv_comparison() {
 }
 
 profiler() {
-  echo "Running VTune profiler on extractor7 with motion_vectors_only=1..."
+  echo "Running VTune profiler on extractor6 with motion_vectors_only=1..."
 	. ~/intel/oneapi/setvars.sh --force
   FFMPEG_LIB="${PWD}/ffmpeg/ffmpeg-8.0-custom/lib"
   export LD_LIBRARY_PATH="$FFMPEG_LIB/libavutil:$FFMPEG_LIB/libavformat:$LD_LIBRARY_PATH"
   vtune_dir="$RESULTS_DIR/vtune_results"
   mkdir -p "$vtune_dir"
 
-  # Step 1: Collect data
-
-  (cd ./extractors/executables; vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor7 "$INPUT" 0 "$RESULTS_DIR/method7_output_vtune.csv")
+  (cd ./extractors/executables; vtune -collect hotspots -result-dir "$vtune_dir" -- ./extractor6 "$VIDEO_FILE" 0 "$RESULTS_DIR/method6_output_vtune.csv")
 
   vtune -report hotspots -result-dir "$vtune_dir" -format csv -report-output "$vtune_dir/hotspots.csv" 
-
   vtune -report top-down -result-dir "$vtune_dir" -format csv -report-output "$vtune_dir/topdown.csv"
+
   # Generate call tree and hotspots bar chart from VTune topdown CSV
   (cd utils; python3 vtune_hotspots_plot.py "$vtune_dir/topdown.csv")
 
@@ -101,7 +95,6 @@ run_all() {
   generate_mv_comparison
   plot
   profiler
-  echo "$(realpath "$RESULTS_DIR")"
 }
 
 usage() {
@@ -128,11 +121,11 @@ if [[ -z "$1" ]]; then
   exit 1
 fi
 
-INPUT="$1"
-INPUT1="${2:-1}"    # Defaults to 1 if second argument missing
+VIDEO_FILE="$1"
+STREAMS="${2:-1}"    # Defaults to 1 if second argument missing
 
 # Optional validation of streams argument:
-if ! [[ "$INPUT1" =~ ^[0-9]+$ && "$INPUT1" -ge 1 ]]; then
+if ! [[ "$STREAMS" =~ ^[0-9]+$ && "$STREAMS" -ge 1 ]]; then
   echo "Error: streams argument must be a positive integer"
   exit 1
 fi

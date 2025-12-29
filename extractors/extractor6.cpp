@@ -1,8 +1,13 @@
 #include <stdio.h>
+#include "writer.h"
+
+#include <inttypes.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/motion_vector.h>
+#include <libavutil/opt.h>
 }
 
 int main(int argc, char** argv) {
@@ -12,11 +17,17 @@ int main(int argc, char** argv) {
     AVFrame* frame = NULL;
     int video_stream_index = -1;
     int frame_num = 0;
+    int do_print = 1;
+    std::string file_name = "";
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <input>\n", argv[0]);
         return -1;
     }
+    if (argc >= 3)
+        do_print = atoi(argv[2]);
+    if (argc >= 4)
+        file_name = argv[3];
 
     avformat_network_init();
 
@@ -30,9 +41,14 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    //region video stream 
-    video_stream_index = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-    
+    //region video stream
+    for (unsigned i = 0; i < fmt_ctx->nb_streams; i++) {
+        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            video_stream_index = i;
+            break;
+        }
+    }
+
     if (video_stream_index < 0) {
         fprintf(stderr, "Could not find video stream\n");
         return -1;
@@ -42,7 +58,12 @@ int main(int argc, char** argv) {
     //endregion
 
     //region codec
-    const AVCodec* codec = NULL;
+    const AVCodec* codec = avcodec_find_decoder(video_stream->codecpar->codec_id);
+    
+    if (!codec) {
+        fprintf(stderr, "Codec not found.\n");
+        return -1;
+    }
     //endregion
 
     dec_ctx = avcodec_alloc_context3(codec);
@@ -60,9 +81,11 @@ int main(int argc, char** argv) {
     AVDictionary* opts = NULL;
     dec_ctx->thread_count = 0; // 0 lets ffmpeg decide based on CPU cores
     // dec_ctx->thread_count = 1; // set in c version
+    dec_ctx->export_side_data |= AV_CODEC_EXPORT_DATA_MVS;
+    av_opt_set_int(dec_ctx, "motion_vectors_only", 1, 0); // CUSTOM PATCHED FLAG
     //endregion
 
-    if (avcodec_open2(dec_ctx, avcodec_find_decoder(dec_ctx->codec_id), &opts) < 0) {
+    if (avcodec_open2(dec_ctx, codec, &opts) < 0) {
         fprintf(stderr, "Could not open codec.\n");
         return -1;
     }
@@ -74,6 +97,17 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Could not allocate packet or frame.\n");
         return -1;
     }
+
+    MotionVectorWriter writer;
+    if (do_print) {
+        if (!writer.Open(file_name)) {
+            fprintf(stderr, "Failed to open output file\n");
+            return 1;
+        }
+    }
+
+    // for debugging purposes
+    fprintf(stderr, "FFmpeg version: %s\n", av_version_info());
 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == video_stream_index) {
@@ -91,13 +125,35 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "Error during decoding.\n");
                     break;
                 }
+
+                AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
+                if (do_print) {
+                    if (sd && sd->data && sd->size > 0) {
+                        writer.Write(frame_num, (const AVMotionVector*)sd->data, 6, sd->size);
+                    }
+                    else {
+                        fprintf(stderr, "frame %d: no motion vectors\n", frame_num);
+                    }
+                }
+
                 av_frame_unref(frame);
                 frame_num++;
             }
         }
         av_packet_unref(pkt);
     }
-    printf("Decoded %d frames\n", frame_num);
+
+    // Flush decoder
+    avcodec_send_packet(dec_ctx, NULL);
+    while (avcodec_receive_frame(dec_ctx, frame) == 0) {
+        AVFrameSideData* sd = av_frame_get_side_data(frame, AV_FRAME_DATA_MOTION_VECTORS);
+        if (sd) {
+            if (do_print)
+                writer.Write(frame_num, (const AVMotionVector*)sd->data, 7, sd->size);
+        }
+        av_frame_unref(frame);
+        frame_num++;
+    }
 
     avcodec_free_context(&dec_ctx);
     avformat_close_input(&fmt_ctx);
