@@ -56,18 +56,18 @@ double now_ms() {
 
 void parse_csv(const std::string& fname, int* frames, int* mvs) {
     std::ifstream file(fname);
+    
     if (!file) {
         fprintf(stderr, "Warning: cannot open CSV file '%s': %s\n", fname.c_str(), strerror(errno));
-        *frames = 0;
-        *mvs = 0;
         return;
     }
+
     std::string line;
     int last = -1;
-    *frames = 0;
-    *mvs = 0;
+    
     if (!std::getline(file, line))
         return;
+        
     while (std::getline(file, line)) {
         std::istringstream iss(line);
         int frame = -1;
@@ -81,7 +81,7 @@ void parse_csv(const std::string& fname, int* frames, int* mvs) {
     }
 }
 
-BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& video_file, int par_streams, std::string& absolute_path, std::string& current_dir) {
+BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& video_file, int par_streams, int do_print, std::string& absolute_path, std::string& current_dir) {
     BenchmarkResult r;
     r.name = m.name;
     r.supports_high_profile = m.supports_high_profile;
@@ -105,8 +105,8 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& v
             std::string exe_str = current_dir + m.exe;
             char* exe = const_cast<char*>(exe_str.c_str());
             char* video_file_input = const_cast<char*>(video_file.c_str());
-
-            execl(exe, exe, video_file_input, "1", csv_filename, nullptr);
+            std::string print_to_file = std::to_string(do_print);
+            execl(exe, exe, video_file_input, print_to_file.c_str(), csv_filename, nullptr);
 
             fprintf(stderr, "Child %d: exec failed for command %s %s: %s\n", i, m.exe.c_str(), video_file.c_str(), strerror(errno));
             exit(127);
@@ -140,9 +140,9 @@ BenchmarkResult run_benchmark_parallel(const MethodInfo& m, const std::string& v
     double total_user_cpu_sec = 0;
     int total_mvs = 0;
     for (int i = 0; i < par_streams; ++i) {
-        if (usage[i].ru_maxrss > max_rss_kb) {
+        if (usage[i].ru_maxrss > max_rss_kb)
             max_rss_kb = usage[i].ru_maxrss;
-        }
+
         double u_sec = usage[i].ru_utime.tv_sec + usage[i].ru_utime.tv_usec / 1e6;
         total_user_cpu_sec += u_sec;
         char csv_filename[256];
@@ -194,16 +194,21 @@ int main(int argc, char** argv) {
     int par_streams = 1;
     if (argc == 3)
         par_streams = std::atoi(argv[2]);
+
+    int do_print = 0;
+    if (argc == 6)
+        do_print = std::atoi(argv[5]);
+
     if (par_streams < 1 || par_streams > 100) {
         std::cerr << "Streams must be between 1 and 100." << std::endl;
         return 1;
     }
     std::vector<BenchmarkResult> results;
-    printf("🔍 Starting benchmarking on: %s\n", video_file.c_str());
-    printf("   Streams per method: %d\n\n", par_streams);
+    printf("Starting benchmarking on: %s\n", video_file.c_str());
+    printf("Streams per method: %d\n\n", par_streams);
     for (int i = 0; i < methods.size(); ++i) {
         printf("Running: %s\n", methods[i].name.c_str());
-        results.push_back(run_benchmark_parallel(methods[i], video_file, par_streams, absolute_path, current_dir));
+        results.push_back(run_benchmark_parallel(methods[i], video_file, par_streams, do_print, absolute_path, current_dir));
         printf("Done: %d frames, %.2f ms/frame, %.1f FPS\n\n",
             results[i].frame_count, results[i].avg_time_per_frame_ms, results[i].throughput_fps);
     }

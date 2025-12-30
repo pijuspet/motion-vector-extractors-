@@ -10,6 +10,9 @@ RUN_TIMESTAMP=$(date +"%Y%m%d_%H%M")
 RESULTS_DIR="$RESULTS_BASE/$RUN_TIMESTAMP"
 mkdir -p "$RESULTS_DIR"
 
+BENCHMARKING_DIR="${CURRENT_DIR}/benchmarking"
+SLIDES_CONFIG="${BENCHMARKING_DIR}/slides_config.json"
+
 build() {
   echo "Building all extractors and tools..."
   make all
@@ -26,7 +29,7 @@ extract() {
     return 1
   fi
   echo "Running 9-method benchmark suite..."
-  (cd benchmarking/executables; ./benchmark_all_9 "$VIDEO_FILE" "$STREAMS" "$RESULTS_DIR" "$CURRENT_DIR")
+  (cd benchmarking/executables; ./benchmark_all_9 "$VIDEO_FILE" "$STREAMS" "$RESULTS_DIR" "$CURRENT_DIR" "1")
   echo "Benchmarks complete."
 }
 
@@ -55,7 +58,7 @@ plot() {
   fi
   mkdir -p "$RESULTS_DIR/plots"
   echo "Running Python benchmark visualization and PPT generation..."
-  (cd benchmarking; python3 benchmark_python.py "$VIDEO_FILE" "$STREAMS" "$CURRENT_DIR" "$RESULTS_DIR" "$RESULTS_DIR/plots")
+  (cd benchmarking; python3 benchmark_python.py "$VIDEO_FILE" "$STREAMS" "$BENCHMARKING_DIR/executables" "$CURRENT_DIR" "$RESULTS_DIR" "$SLIDES_CONFIG" "$RESULTS_DIR/plots")
   echo "Plotting complete. Plots and PPTX in $RESULTS_DIR/plots."
 }
 

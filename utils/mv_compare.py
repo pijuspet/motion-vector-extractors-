@@ -58,7 +58,7 @@ def compare_frames(
             if first_value != second_value:
                 differences.append(
                     f"Frame {frame_number}: '{column_name}' differs "
-                    f"(method0={first_value}, method6={second_value})"
+                    f"(first method={first_value}, second method={second_value})"
                 )
 
     return differences
@@ -80,13 +80,13 @@ def main() -> None:
     """Main entry point for the motion vector comparison tool."""
     if len(sys.argv) != 6:
         print(
-            "Usage: python3 mv_compare.py <method0.csv> <method6.csv> "
+            "Usage: python3 mv_compare.py <first_file.csv> <second_file.csv> "
             "<start_frame> <end_frame> <output.txt>"
         )
         sys.exit(1)
 
-    method0_file_path = Path(sys.argv[1])
-    method6_file_path = Path(sys.argv[2])
+    first_file_path = Path(sys.argv[1])
+    second_file_path = Path(sys.argv[2])
     start_frame = int(sys.argv[3])
     end_frame = int(sys.argv[4])
     output_file_path = Path(sys.argv[5])
@@ -97,11 +97,11 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        method0_dataframe = pd.read_csv(method0_file_path)
-        method6_dataframe = pd.read_csv(method6_file_path)
+        first_method_dataframe = pd.read_csv(first_file_path)
+        second_method_dataframe = pd.read_csv(second_file_path)
 
         frame_differences: List[str] = compare_frames(
-            method0_dataframe, method6_dataframe, start_frame, end_frame
+            first_method_dataframe, second_method_dataframe, start_frame, end_frame
         )
         write_results(frame_differences, output_file_path, start_frame, end_frame)
         print(f"Comparison complete. Results written to {output_file_path}")
