@@ -32,12 +32,6 @@ extract() {
   echo "Benchmarks complete."
 }
 
-decode() {
-  if [ ! -f "$RESULTS_DIR/decoded_output.mp4" ]; then
-    echo "Creating decoded_output.mp4 reference video using ffmpeg..."
-    ffmpeg -y -i "$VIDEO_FILE" -c copy -an "$RESULTS_DIR/decoded_output.mp4"
-  fi
-}
 
 plot() {
   if [[ -z "$VIDEO_FILE" ]]; then
@@ -85,8 +79,6 @@ profiler() {
 run_all() {
   build
   extract
-  combine
-  decode
   generate_mv_comparison
   plot
   profiler
@@ -100,11 +92,9 @@ usage() {
   echo "  You will then be prompted to pick which step(s) to run."
   echo "    1 = Build"
   echo "    2 = Extract (run benchmark)"
-  echo "    3 = Combine CSVs"
-  echo "    4 = Decode Reference Video"
-  echo "    5 = Generate Plots and PowerPoint"
-  echo "    6 = Generate MV comparison"
-  echo "    7 = Profiler (VTune on FFmpeg hacked)"
+  echo "    3 = Generate Plots and PowerPoint"
+  echo "    4 = Generate MV comparison"
+  echo "    5 = Profiler (VTune on FFmpeg hacked)"
   echo "    0 = Run ALL steps in sequence"
   echo
 }
@@ -129,10 +119,9 @@ echo
 echo "Select steps to run (enter one or more numbers separated by space):"
 echo "  1: Build"
 echo "  2: Extract (run benchmark)"
-echo "  3: Decode Reference Video"
-echo "  4: Generate Plots and PowerPoint"
-echo "  5: Generate MV comparison"
-echo "  6: Profiler (VTune on FFmpeg hacked)"
+echo "  3: Generate Plots and PowerPoint"
+echo "  4: Generate MV comparison"
+echo "  5: Profiler (VTune on FFmpeg hacked)"
 echo "  0: Run ALL steps"
 echo
 read -p "Choice(s): " CHOICES
@@ -141,10 +130,9 @@ for step in $CHOICES; do
   case "$step" in
     1) build ;;
     2) extract ;;
-    3) decode ;;
-    4) plot ;;
-    5) generate_mv_comparison ;;
-    6) profiler ;;
+    3) plot ;;
+    4) generate_mv_comparison ;;
+    5) profiler ;;
     0) run_all; break ;;
     *) echo "Invalid step: $step" ;;
   esac
