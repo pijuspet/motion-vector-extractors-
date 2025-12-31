@@ -2,21 +2,17 @@
 run_all() {
   echo "Running full benchmark and publishing results..."
   
-  # Run the benchmark to get NEW results directory
-  LATEST_RESULTS_DIR=$(run_benchmark | tail -n 1) 
-  echo "Latest results directory: $LATEST_RESULTS_DIR"
-  
-  # Set the FIRST results directory (you can make this dynamic if needed)
+  # How and where can we retrieve this?
+  # Set the FIRST results directory (you can make this dynamic if needed) 
   FIRST_RESULTS_DIR="/media/loab/f53f31e5-20d9-427c-b719-3e150951a7ec/published/20250922_133754"
-  
-  # Get git commit URL for the NEW run
-  LATEST_GIT_COMMIT=$(publish_git | grep GIT_COMMIT_URL | awk -F '=' '{print $2}')
-  if [[ -z "$LATEST_GIT_COMMIT" ]]; then
-    LATEST_GIT_COMMIT="https://github.com/ablouise/ffmpeg-8.0-ourversion/commit/$(git -C /home/loab/Documents/ffmpeg-8.0-ourversion rev-parse HEAD)"
-  fi
-  
   # Set the FIRST git commit (hardcoded for comparison)
   FIRST_GIT_COMMIT="https://github.com/ablouise/ffmpeg-8.0-ourversion/commit/6faaff56c675b77dc783afc89a1dfb113c07bcf9"
+  
+  LATEST_RESULTS_DIR=$(run_benchmark | tail -n 1) 
+  echo "Latest results directory: $LATEST_RESULTS_DIR"
+
+  # Get git commit URL for the NEW run
+  LATEST_GIT_COMMIT=$(publish_git | grep GIT_COMMIT_URL | awk -F '=' '{print $2}')
   
   echo "Publishing to Confluence with:"
   echo "  First results dir: $FIRST_RESULTS_DIR"
@@ -28,21 +24,20 @@ run_all() {
 }
 
 publish_git() {
-  REPO_PATH="${PWD}/ffmpeg"
+  PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+  REPO_PATH="$PROJECT_ROOT/ffmpeg"
   echo "Committing and pushing all changes to git in $REPO_PATH..."
   git -C "$REPO_PATH" add .
   git -C "$REPO_PATH" commit -m "Automated benchmark and report update $(date +'%Y-%m-%d %H:%M:%S')" || echo "Nothing to commit."
   git -C "$REPO_PATH" push origin
+  
   COMMIT_HASH=$(git -C "$REPO_PATH" rev-parse HEAD)
   REMOTE_URL=$(git -C "$REPO_PATH" config --get remote.origin.url)
-  if [[ "$REMOTE_URL" =~ ^git@github.com:(.*)\.git$ ]]; then
-    GH_PATH="${BASH_REMATCH[1]}"
-    COMMIT_URL="https://github.com/$GH_PATH/commit/$COMMIT_HASH"
-  elif [[ "$REMOTE_URL" =~ ^https://github.com/(.*)\.git$ ]]; then
-    GH_PATH="${BASH_REMATCH[1]}"
-    COMMIT_URL="https://github.com/$GH_PATH/commit/$COMMIT_HASH"
-  else
+
+  if [[ -z "$REMOTE_URL" ]]; then
     COMMIT_URL="$COMMIT_HASH"
+  else
+    COMMIT_URL="$REMOTE_URL/commit/$COMMIT_HASH"
   fi
   echo "GIT_COMMIT_URL=$COMMIT_URL"
 }
@@ -88,7 +83,7 @@ publish_confluence() {
 run_benchmark() {
   CURRENT_DIR=$(pwd)
   echo "DEBUG: Starting benchmark..."
-  echo 0 | ./benchmarking/run_full_benchmark.sh "$CURRENT_DIR/videos/bigbunny.mp4" 15
+  echo 0 | ./benchmarking/run_full_benchmark.sh "$CURRENT_DIR/videos/bigbunny.mp4" 15 # discuss if other videos are better
   echo "DEBUG: Benchmark script finished."
 
   RESULTS_DIR=$(ls -d "$CURRENT_DIR"/results/* | sort | tail -n 1)

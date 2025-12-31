@@ -192,11 +192,11 @@ int main(int argc, char** argv) {
     std::string absolute_path = argv[3];
     std::string current_dir = argv[4];
     int par_streams = 1;
-    if (argc == 3)
+    if (argc >= 3)
         par_streams = std::atoi(argv[2]);
 
     int do_print = 0;
-    if (argc == 6)
+    if (argc >= 6)
         do_print = std::atoi(argv[5]);
 
     if (par_streams < 1 || par_streams > 100) {
