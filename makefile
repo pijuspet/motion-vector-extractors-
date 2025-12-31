@@ -26,7 +26,8 @@ WRITER_SRC = $(EXTRACTOR_DIR)/writer.cpp -Iextractors
 
 VIDEO_FILE = $(CURRENT_DIR)/videos/vid_h264.mp4
 LAST_RESULTS_DIR = $(shell ls -d $(CURRENT_DIR)/results/* | sort | tail -n 1)
-CSV_FILE_PATH = $(LAST_RESULTS_DIR)/all_motion_vectors.csv
+CSV_FILE_PATH_ORIG = $(LAST_RESULTS_DIR)/method0_output_0.csv # original ffmpeg
+CSV_FILE_PATH_CUST = $(LAST_RESULTS_DIR)/method6_output_0.csv # custom ffmpeg
 
 PARENT_DIR  := $(shell dirname $(CURRENT_DIR))
 VENV_FOLDER = $(PARENT_DIR)/venv-motion-vectors
@@ -67,5 +68,5 @@ publish:
 	./publishing/publish_report.sh
 	
 generate_video:
-	python ./video_generation/combine_motion_vectors_with_video.py $(VIDEO_FILE) $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)
-	python ./video_generation/generate_motion_vectors_video.py $(CSV_FILE_PATH) $(LAST_RESULTS_DIR)
+	python ./video_generation/combine_motion_vectors_with_video.py $(VIDEO_FILE) $(CSV_FILE_PATH_ORIG) $(CSV_FILE_PATH_CUST) $(LAST_RESULTS_DIR)
+	python ./video_generation/generate_motion_vectors_video.py $(CSV_FILE_PATH_CUST) $(LAST_RESULTS_DIR)

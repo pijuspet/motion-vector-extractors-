@@ -143,35 +143,27 @@ if __name__ == "__main__":
         sys.exit(1)
 
     input_video_filename = sys.argv[1]
-    csv_file_path = sys.argv[2]
-    results_directory = sys.argv[3]
+    csv_file_path_orig = sys.argv[2]
+    csv_file_path_cust = sys.argv[3]
+    results_directory = sys.argv[4]
 
-    all_motion_vectors = mv.load_motion_vectors(csv_file_path)
+    original_motion_vectors = mv.load_motion_vectors(csv_file_path_orig)
+    custom_motion_vectors = mv.load_motion_vectors(csv_file_path_cust)
 
-    # Filter for specific extractors (0 and 6)
-    available_method_ids = sorted(all_motion_vectors["method_id"].unique())
-    selected_method_ids = [
-        method_id for method_id in available_method_ids if method_id in [0, 6]
-    ]
-    motion_dataframes_list = [
-        all_motion_vectors[all_motion_vectors["method_id"] == method_id]
-        for method_id in selected_method_ids
-    ]
-
-    if len(sys.argv) > 4:
-        video_position = int(sys.argv[4])
+    if len(sys.argv) > 5:
+        video_position = int(sys.argv[5])
     else:
         video_position = None
 
-    if len(sys.argv) > 5:
-        max_frames_to_process = int(sys.argv[5])
+    if len(sys.argv) > 6:
+        max_frames_to_process = int(sys.argv[6])
     else:
         max_frames_to_process = 660
 
     output_path = f"{results_directory}/combined_motion_vectors_with_video.mp4"
     output_file_path = create_combined_video(
         input_video_filename,
-        motion_dataframes_list,
+        [original_motion_vectors, custom_motion_vectors],
         output_path,
         video_position,
         max_frames_to_process,

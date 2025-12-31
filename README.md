@@ -46,7 +46,7 @@ During execution, you’ll be presented with options. If you select **option `0`
 make generate_video
 ```
 
-videos are saved in `/results/[date]` folder (requires `all_motion_vectors.csv` file, run `make benchmark` with flag 0 beforehand).
+videos are saved in `/results/[date]` folder (requires `method0_output_0.csv` and `method6_output_0.csv` files, run `make benchmark` with flag 0 beforehand).
 
 ## Results Output
 
