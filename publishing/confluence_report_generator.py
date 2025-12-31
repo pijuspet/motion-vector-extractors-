@@ -275,7 +275,6 @@ class ConfluenceReportGenerator:
         git_commit_run1=None,
         git_commit_run2=None,
     ):
-        # Load template from file
         with open("templates/main_dashboard_template.html.jinja", "r") as f:
             template = Template(f.read())
 

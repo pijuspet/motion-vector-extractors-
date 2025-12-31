@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-
+from jinja2 import Template
 
 @dataclass
 class TreeNode:
@@ -103,20 +103,18 @@ def generate_complete_html(
     nodes: Dict[str, TreeNode], root_nodes: List[str], output_file: str
 ) -> None:
     tree_html = "".join(generate_tree_html(nodes, root_id) for root_id in root_nodes)
-
-    template_path = os.path.join(os.path.dirname(__file__), "vtune.html")
-
-    with open(template_path, "r", encoding="utf-8") as template_file:
-        template = template_file.read()
-
-    html_content = (
-        template.replace("{{TREE_HTML}}", tree_html)
-        .replace("{{NODES_COUNT}}", str(len(nodes)))
-        .replace("{{ROOTS_COUNT}}", str(len(root_nodes)))
+    
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "vtune.html.jinja")
+    with open(template_path, "r") as f:
+            template = Template(f.read())
+    rendered = template.render(
+        nodes_count=len(nodes),
+        roots_count=len(root_nodes),
+        tree_html=tree_html
     )
 
     with open(output_file, "w", encoding="utf-8") as output:
-        output.write(html_content)
+        output.write(rendered)
 
 
 def generate_hotspots_chart(csv_file: str, output_directory: str) -> None:

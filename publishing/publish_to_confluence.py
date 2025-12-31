@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""
-Automated Confluence Report Publisher
-Runs the benchmark, collects output directory, and publishes results to Confluence.
-"""
+
 import os
 import argparse
-import re
 
 from dotenv import load_dotenv
 
@@ -65,15 +61,15 @@ def cli():
     print("[DEBUG] ConfluenceReportGenerator initialized.")
 
     # Debug and check existence for first run (first argument)
-    first_dir = args.first_results_dir.rstrip("/")
-    create_report(
-        generator, first_dir, args.git_commit_run1, latest=False
-    )
+    # first_dir = args.first_results_dir.rstrip("/")
+    # create_report(
+    #     generator, first_dir, args.git_commit_run1, latest=False
+    # )
 
-    latest_dir = args.latest_results_dir.rstrip("/")
-    create_report(
-        generator, latest_dir, args.git_commit_run2, latest=True
-    )
+    # latest_dir = args.latest_results_dir.rstrip("/")
+    # create_report(
+    #     generator, latest_dir, args.git_commit_run2, latest=True
+    # )
 
     # Always update dashboard summary
     print("[DEBUG] Updating dashboard summary...")

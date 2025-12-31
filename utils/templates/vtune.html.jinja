@@ -114,8 +114,8 @@
 
         <div class="stats">
             <strong>Tree Statistics:</strong>
-            {{NODES_COUNT}} total function calls,
-            {{ROOTS_COUNT}} root nodes
+            {{ nodes_count }} total function calls,
+            {{ roots_count }} root nodes
         </div>
 
         <div class="header">
@@ -125,7 +125,7 @@
         </div>
 
         <ul class="tree-root">
-            {{TREE_HTML}}
+            {{ tree_html|safe }}
         </ul>
     </div>
 
