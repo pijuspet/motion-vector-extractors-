@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import publish_to_confluence as ptc
+import publishing.publish_to_confluence as ptc
 from benchmarking.run_full_benchmark import BenchmarkRunner
 
 

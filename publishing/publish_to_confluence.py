@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv(".env")
 
-import confluence_report_generator as conf
+import publishing.confluence_report_generator as conf
 
 
 def create_report(generator, directory, commit_url, latest=True):

@@ -6,9 +6,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-import benchmark_python as benchmarking
+import benchmarking.benchmark_python as benchmarking
 import utils.mv_compare as mv_compare
 import utils.vtune_hotspots_plot as vtune
 

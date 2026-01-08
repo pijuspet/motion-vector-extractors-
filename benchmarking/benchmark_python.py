@@ -2,7 +2,7 @@ import subprocess
 import pandas as pd
 import os
 
-import slides as sld
+import benchmarking.slides as sld
 
 
 def generate_stream_runs(max_streams):

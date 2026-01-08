@@ -5,7 +5,7 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 import json
 
-import plots as plts
+import benchmarking.plots as plts
 
 
 def load_benchmark_config(config_path):
