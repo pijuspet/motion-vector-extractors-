@@ -1,6 +1,4 @@
 __pycache__/
-ffmpeg-*/
-intel-vtune-*/
 executables/
 results/
 .env

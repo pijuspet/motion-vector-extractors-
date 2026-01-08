@@ -5,6 +5,9 @@
 To set up and use this project, follow these steps:
 
 1. **Clone the repository**
+```bash
+git clone --recurse-submodules https://github.com/pijuspet/motion-vector-extractors
+```
 2. **Install the required Python packages**
 ```bash
 make install
