@@ -62,10 +62,10 @@ setup_ffmpeg:
 	$(call FFMPEG_BUILD,$(REGULAR_PREFIX)/FFmpeg)
 
 benchmark:
-	./benchmarking/run_full_benchmark.sh $(VIDEO_FILE) 5
+	python -m benchmarking.run_full_benchmark $(VIDEO_FILE) 15
 
 publish:
-	./publishing/publish_report.sh
+	python -m publishing.publish_report 
 	
 generate_video:
 	python ./video_generation/combine_motion_vectors_with_video.py $(VIDEO_FILE) $(CSV_FILE_PATH_ORIG) $(CSV_FILE_PATH_CUST) $(LAST_RESULTS_DIR)

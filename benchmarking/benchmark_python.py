@@ -1,14 +1,8 @@
 import subprocess
 import pandas as pd
-import argparse
 import os
 
 import slides as sld
-
-
-def get_plots_folder(folder):
-    os.makedirs(folder, exist_ok=True)
-    return folder
 
 
 def generate_stream_runs(max_streams):
@@ -132,36 +126,24 @@ def run_all(
     )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Benchmark, save all charts, and auto-create PowerPoint slides (High Profile only)."
-    )
-    parser.add_argument("input", help="Input video file or RTSP URL")
-    parser.add_argument("streams", type=int, help="Maximum stream count")
-    parser.add_argument("executable_absolute_path", nargs="?", default="")
-    parser.add_argument("project_absolute_path", nargs="?", default="")
-    parser.add_argument("results_absolute_path", nargs="?", default="")
-    parser.add_argument("slides_config_path", nargs="?", default="")
-    parser.add_argument(
-        "plots_folder",
-        nargs="?",
-        default="plots",
-        help="Output folder for plots and PPTX",
-    )
-    parser.add_argument(
-        "--exe", default="./benchmark_all_9", help="Benchmark executable to run"
-    )
-    args = parser.parse_args()
-    plots_folder = get_plots_folder(args.plots_folder)
-
-    exe_fullpath = os.path.join(args.executable_absolute_path, args.exe)
+def benchmark(
+    input,
+    streams,
+    executable_absolute_path,
+    project_absolute_path,
+    results_absolute_path,
+    slides_config_path,
+    plots_folder,
+    exe,
+):
+    exe_fullpath = os.path.join(executable_absolute_path, exe)
 
     run_all(
-        args.input,
-        args.streams,
+        input,
+        streams,
         exe_fullpath,
-        args.project_absolute_path,
-        args.results_absolute_path,
-        args.slides_config_path,
+        project_absolute_path,
+        results_absolute_path,
+        slides_config_path,
         plots_folder,
     )

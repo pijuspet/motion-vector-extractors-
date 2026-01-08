@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import seaborn as sns
 
+
 def highlight_table(df):
     def find_col(possibles):
         for p in possibles:
@@ -46,10 +47,10 @@ def highlight_table(df):
 
 def save_highlighted_table_as_png(df, filename):
     styled = highlight_table(df)
-    html_file = filename.replace(".png", ".html")
-    styled.to_html(html_file)
-    imgkit.from_file(html_file, filename)
+    html_str = styled.to_html()
+    imgkit.from_string(html_str, filename)
     print(f"Saved highlighted table as {filename}")
+
 
 def pretty_table(df, filename, plots_folder, col_width=2.8, row_height=0.8):
     n_rows, n_cols = df.shape
@@ -87,6 +88,7 @@ def pretty_table(df, filename, plots_folder, col_width=2.8, row_height=0.8):
     plt.close(fig)
     print(f"Saved pretty table image: {outpath}")
     return filename
+
 
 def plot_grouped_bar(
     df, metric, title, ylabel, filename, plots_folder, palette="tab20"

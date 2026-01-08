@@ -9,12 +9,30 @@ from jinja2 import Template
 
 
 class ConfluenceReportGenerator:
-    def __init__(self, confluence_url, username, api_token, space_key, main_page_title):
+    def __init__(
+        self,
+        confluence_url,
+        username,
+        api_token,
+        space_key,
+        main_page_title,
+        project_root,
+    ):
         self.confluence = Confluence(
             url=confluence_url, username=username, password=api_token
         )
         self.space_key = space_key
         self.main_page_title = main_page_title
+        self.project_root = project_root
+
+        self.templates = self.project_root / "publishing" / "templates"
+
+        self.detailed_report_template = (
+            self.templates / "detailed_report_template.html.jinja"
+        )
+        self.main_dashboard_template = (
+            self.templates / "main_dashboard_template.html.jinja"
+        )
 
     def __get_page_by_title__(self):
         return self.confluence.get_page_by_title(self.space_key, self.main_page_title)
@@ -258,7 +276,7 @@ class ConfluenceReportGenerator:
                 {"streams": streams, "filename": os.path.basename(img)}
             )
 
-        with open("templates/detailed_report_template.html.jinja", "r") as f:
+        with open(self.detailed_report_template, "r") as f:
             template = Template(f.read())
 
         return template.render(
@@ -278,7 +296,7 @@ class ConfluenceReportGenerator:
         git_commits=None,
         run_titles=None,
     ):
-        with open("templates/main_dashboard_template.html.jinja", "r") as f:
+        with open(self.main_dashboard_template, "r") as f:
             template = Template(f.read())
 
         if git_commits is None:
@@ -370,7 +388,6 @@ class ConfluenceReportGenerator:
         for fpath, fname in file_list:
             self.confluence.attach_file(filename=fpath, page_id=page_id, name=fname)
 
-        # Compose the detailed report body referencing attachments
         body = self.__generate_detailed_report_body__(
             plots_dir, page_id, git_commit_url=git_commit_url
         )

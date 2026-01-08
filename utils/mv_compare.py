@@ -76,22 +76,10 @@ def write_results(
             )
 
 
-def main() -> None:
-    """Main entry point for the motion vector comparison tool."""
-    if len(sys.argv) != 6:
-        print(
-            "Usage: python3 mv_compare.py <first_file.csv> <second_file.csv> "
-            "<start_frame> <end_frame> <output.txt>"
-        )
-        sys.exit(1)
+def compare(
+    first_file_path, second_file_path, start_frame, end_frame, output_file_path
+):
 
-    first_file_path = Path(sys.argv[1])
-    second_file_path = Path(sys.argv[2])
-    start_frame = int(sys.argv[3])
-    end_frame = int(sys.argv[4])
-    output_file_path = Path(sys.argv[5])
-
-    # Validate frame range
     if start_frame > end_frame:
         print(f"Error: start_frame ({start_frame}) must be <= end_frame ({end_frame})")
         sys.exit(1)
@@ -118,7 +106,3 @@ def main() -> None:
     except Exception as error:
         print(f"Unexpected error: {error}")
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

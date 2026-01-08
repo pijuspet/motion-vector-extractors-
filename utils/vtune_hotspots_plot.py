@@ -1,5 +1,4 @@
 import pandas as pd
-import sys
 import os
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
@@ -165,13 +164,7 @@ def generate_hotspots_chart(csv_file: str, output_directory: str) -> None:
 
     print(f"Hotspots bar chart saved to: {png_file}")
 
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python vtune_tree.py <topdown.csv>")
-        sys.exit(1)
-
-    csv_file = sys.argv[1]
+def build_tree(csv_file):
     print("Building VTune call tree...")
 
     nodes, root_nodes = build_vtune_tree(csv_file)
