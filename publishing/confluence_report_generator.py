@@ -5,22 +5,28 @@ import glob
 import requests
 from bs4 import BeautifulSoup
 import re
+from pathlib import Path
 from jinja2 import Template
 
 
 class ConfluenceReportGenerator:
     def __init__(
         self,
-        confluence_url,
-        username,
-        api_token,
-        space_key,
-        main_page_title,
-        project_root,
-    ):
+        confluence_url: str,
+        username: str,
+        api_token: str,
+        space_key: str,
+        main_page_title: str,
+        project_root: Path,
+    ) -> None:
         self.confluence = Confluence(
             url=confluence_url, username=username, password=api_token
         )
+
+        self.call_tree_line_limit = 100
+        self.html_preview_limit = 2000
+        self.attachment_wait_time = 5
+
         self.space_key = space_key
         self.main_page_title = main_page_title
         self.project_root = project_root
@@ -33,122 +39,124 @@ class ConfluenceReportGenerator:
         self.main_dashboard_template = (
             self.templates / "main_dashboard_template.html.jinja"
         )
+        self.plots_subdir = "plots"
+        self.vtune_subdir = "vtune_results"
+
+        self.detailed_report_plots = [
+            ("Fastest Methods", "fastest_high_profile_methods.png", self.plots_subdir),
+            ("Throughput Scaling", "scaling_fps.png", self.plots_subdir),
+            ("Latency Scaling", "scaling_timeperframe.png", self.plots_subdir),
+            ("CPU Usage Scaling", "scaling_cpu.png", self.plots_subdir),
+            ("Memory Usage Scaling", "scaling_memory.png", self.plots_subdir),
+            (
+                "Grouped FPS Comparison (All Streams)",
+                "grouped_barchart_fps.png",
+                self.plots_subdir,
+            ),
+            (
+                "Grouped Latency Comparison (All Streams)",
+                "grouped_barchart_timeperframe.png",
+                self.plots_subdir,
+            ),
+            (
+                "Grouped CPU Usage Comparison (All Streams)",
+                "grouped_barchart_cpu.png",
+                self.plots_subdir,
+            ),
+            (
+                "Grouped Memory Usage Comparison (All Streams)",
+                "grouped_barchart_memory.png",
+                self.plots_subdir,
+            ),
+        ]
+
+        self.detailed_report_vtune = [
+            ("Profiler Results", "vtune_hotspots.png", self.vtune_subdir),
+        ]
+
+        self.main_dashboard_plots = [
+            (None, "detail_table_1streams_highlighted.png", self.plots_subdir),
+            (None, "grouped_barchart_cpu.png", self.plots_subdir),
+            (None, "grouped_barchart_memory.png", self.plots_subdir),
+        ]
+
+        self.additional_files = [
+            (None, "mv_comparison_result.txt", ""),
+        ]
+
+        self.vtune_files = [
+            (None, "vtune_hotspots.png", self.vtune_subdir),
+            (None, "call_tree.html", self.vtune_subdir),
+        ]
+
+        self.glob_patterns = [(None, "detail_table_*streams.png", self.plots_subdir)]
 
     def __get_page_by_title__(self):
         return self.confluence.get_page_by_title(self.space_key, self.main_page_title)
 
-    def __collect_files__(
-        self,
-        results_dir,
-        plots_subdir,
-        vtune_subdir,
-        plots_files,
-        vtune_files,
-        additional_files=None,
-        glob_patterns=None,
-        prefix="",
-    ):
+    def __collect_files__(self, results_dir, file_specs, prefix=""):
         file_list = []
 
-        def add_if_exists(path, name, use_prefix=True):
-            directory = os.path.join(path, name)
-            if path and os.path.isfile(directory):
-                final_name = prefix + name if use_prefix else name
-                file_list.append((directory, final_name))
+        for title, filename, subdir in file_specs:
+            full_dir = os.path.join(results_dir, subdir) if subdir else results_dir
+            filepath = os.path.join(full_dir, filename)
 
-        plots_dir = os.path.join(results_dir, plots_subdir) if plots_subdir else None
-        vtune_dir = os.path.join(results_dir, vtune_subdir) if vtune_subdir else None
-
-        for file in plots_files:
-            add_if_exists(plots_dir, file)
-
-        for file in vtune_files:
-            add_if_exists(vtune_dir, file)
-
-        if additional_files:
-            for subdir, filename in additional_files:
-                path = os.path.join(results_dir, subdir) if subdir else results_dir
-                add_if_exists(path, filename)
-
-        if glob_patterns:
-            for subdir, pattern in glob_patterns:
-                search_dir = (
-                    os.path.join(results_dir, subdir) if subdir else results_dir
-                )
-                for img in glob.glob(os.path.join(search_dir, pattern)):
-                    file_list.append((img, os.path.basename(img)))
+            if os.path.isfile(filepath):
+                attachment_name = prefix + filename
+                file_list.append((filepath, attachment_name, title))
 
         return file_list
 
-    def __get_detailed_report_files__(self, results_dir, plots_img):
-        plots_files = [file for _, file in plots_img]
-        vtune_files = ["vtune_hotspots.png", "call_tree.html"]
+    def __collect_glob_files__(self, results_dir, glob_specs):
+        file_list = []
 
-        return self.__collect_files__(
-            results_dir=results_dir,
-            plots_subdir="plots",
-            vtune_subdir="vtune_results",
-            plots_files=plots_files,
-            vtune_files=vtune_files,
-            additional_files=[("", "mv_comparison_result.txt")],
-            glob_patterns=[("plots", "detail_table_*streams.png")],
-        )
+        for title_prefix, pattern, subdir in glob_specs:
+            search_dir = os.path.join(results_dir, subdir) if subdir else results_dir
 
-    def __get_main_dashboard_files__(self, results_dir, prefix):
-        plots_files = [
-            "detail_table_1streams_highlighted.png",
-            "grouped_barchart_cpu.png",
-            "grouped_barchart_memory.png",
-        ]
+            for filepath in glob.glob(os.path.join(search_dir, pattern)):
+                filename = os.path.basename(filepath)
+                title = None
+                if title_prefix:
+                    title = f"{title_prefix}: {filename}"
 
-        vtune_files = ["vtune_hotspots.png", "call_tree.html"]
+                file_list.append((filepath, filename, title))
 
-        return self.__collect_files__(
-            results_dir=results_dir,
-            plots_subdir="plots",
-            vtune_subdir="vtune_results",
-            plots_files=plots_files,
-            vtune_files=vtune_files,
-            additional_files=[("", "mv_comparison_result.txt")],
-            prefix=prefix,
-        )
+        return file_list
 
     def __embed_images__(self, images):
         image_list = []
-        for title, fname in images:
+        for title, fname, _ in images:
             image_list.append({"title": title, "filename": fname})
         return image_list
 
-    def __get_mv_cmp_attachment__(self, page_id, file_name):
+    def __get_attachment_content__(self, page_id, file_name):
         attachments = self.confluence.get_attachments_from_content(
             page_id, filename=file_name
         )
-        att = attachments["results"][0] if attachments["size"] > 0 else None
-        if att and "download" in att["_links"]:
-            url = self.confluence.url + att["_links"]["download"]
-            resp = requests.get(
-                url, auth=(self.confluence.username, self.confluence.password)
-            )
-            if resp.ok and resp.text.strip():
-                return resp.text.strip()
+        if attachments["size"] == 0:
+            return None
+
+        att = attachments["results"][0]
+        if "download" not in att["_links"]:
+            return None
+
+        url = self.confluence.url + att["_links"]["download"]
+        resp = requests.get(
+            url, auth=(self.confluence.username, self.confluence.password)
+        )
+
+        if resp.ok and resp.text.strip():
+            return resp.text.strip()
+
         return None
 
     def __get_calltree_html_interactive__(self, page_id, file_name, add_macro=True):
-        attachments = self.confluence.get_attachments_from_content(
-            page_id, filename=file_name
-        )
-        att = attachments["results"][0] if attachments["size"] > 0 else None
-        if att and "download" in att["_links"]:
-            url = self.confluence.url + att["_links"]["download"]
-            resp = requests.get(
-                url, auth=(self.confluence.username, self.confluence.password)
-            )
-            if not resp.ok or not resp.text.strip():
-                return None
+        content = self.__get_attachment_content__(page_id, file_name)
 
-            html = resp.text.strip()
-            return {"html": html, "add_macro": add_macro}
-        return None
+        if content is None:
+            return None
+
+        return {"html": content, "add_macro": add_macro}
 
     def __get_calltree_html_non_interactive__(self, page_id, file_name):
         call_tree_data = self.__get_calltree_html_interactive__(
@@ -162,34 +170,30 @@ class ConfluenceReportGenerator:
             soup = BeautifulSoup(call_tree_data["html"], "html.parser")
             tree_container = soup.find("ul", class_="tree-root")
 
-            if tree_container:
+            if not tree_container:
+                return soup.get_text()[: self.html_preview_limit]
 
-                def extract_tree_text(ul_element, indent=0):
-                    result = []
-                    for li in ul_element.find_all(
-                        "li", class_="tree-node", recursive=False
-                    ):
-                        name_span = li.find("span", class_="name")
-                        cpu_total = li.find("span", class_="cpu-total")
-                        cpu_self = li.find("span", class_="cpu-self")
-                        if name_span:
-                            line = "  " * indent + name_span.get_text(strip=True)
-                            if cpu_total:
-                                line += f" {cpu_total.get_text(strip=True)}"
-                            if cpu_self:
-                                line += f" {cpu_self.get_text(strip=True)}"
-                            result.append(line)
-                        child_ul = li.find("ul", class_="children")
-                        if child_ul:
-                            result.extend(extract_tree_text(child_ul, indent + 1))
-                    return result
+            def extract(ul, indent=0):
+                lines = []
+                for li in ul.find_all("li", class_="tree-node", recursive=False):
+                    name = li.find("span", class_="name")
+                    if name:
+                        text = "  " * indent + name.get_text(strip=True)
+                        for metric in ["cpu-total", "cpu-self"]:
+                            span = li.find("span", class_=metric)
+                            if span:
+                                text += f" {span.get_text(strip=True)}"
+                        lines.append(text)
 
-                tree_lines = extract_tree_text(tree_container)
-                return "\n".join(tree_lines[:100])  # Limit to first 100 lines
-            else:
-                return soup.get_text()[:2000]
+                    children = li.find("ul", class_="children")
+                    if children:
+                        lines.extend(extract(children, indent + 1))
+                return lines
+
+            tree_lines = extract(tree_container)
+            return "\n".join(tree_lines[: self.call_tree_line_limit])
         except Exception:
-            return call_tree_data["html"][:2000]
+            return call_tree_data["html"][: self.html_preview_limit]
 
     def __update_page__(
         self,
@@ -217,13 +221,13 @@ class ConfluenceReportGenerator:
         self.confluence.put(f"/rest/api/content/{page_id}", data=update_data)
 
     def __generate_detailed_report_body__(
-        self, vtune_img, plots_img, plots_dir, page_id=None, git_commit_url=None
+        self, plots_dir, page_id=None, git_commit_url=None
     ):
-        mv_comparison = self.__get_mv_cmp_attachment__(
+        mv_comparison = self.__get_attachment_content__(
             page_id, "mv_comparison_result.txt"
         )
 
-        vtune_images = self.__embed_images__(vtune_img)
+        vtune_images = self.__embed_images__(self.detailed_report_vtune)
 
         calltree_interactive = self.__get_calltree_html_interactive__(
             page_id, "call_tree.html"
@@ -232,7 +236,7 @@ class ConfluenceReportGenerator:
             page_id, "call_tree.html"
         )
 
-        plots_images = self.__embed_images__(plots_img)
+        plots_images = self.__embed_images__(self.detailed_report_plots)
 
         detail_tables = []
         for img in sorted(
@@ -282,7 +286,7 @@ class ConfluenceReportGenerator:
 
             run_data = {
                 "title": title,
-                "mv_comparison": self.__get_mv_cmp_attachment__(
+                "mv_comparison": self.__get_attachment_content__(
                     dashboard_id, f"{prefix}mv_comparison_result.txt"
                 ),
                 "vtune_hotspots": f"{prefix}vtune_hotspots.png",
@@ -322,20 +326,14 @@ class ConfluenceReportGenerator:
         parent_id = dashboard_page["id"]
 
         print(f"[DEBUG] git_commit_url in detailed report: {git_commit_url}")
-        # Check if a child page with the same title exists under the dashboard
 
-        # region page deletion
-        if parent_id:  # ??  why this deletion
+        if parent_id:
             children = self.confluence.get_child_pages(parent_id)
-            for child in children:
-                if child["title"] == report_title:
-                    print(
-                        f"[INFO] Deleting existing detailed report page '{report_title}' under dashboard."
-                    )
-                    self.confluence.remove_page(child["id"])
-                    break
-        # Otherwise, create the page as a child of the dashboard if parent_id is given
-        # endregion
+            report_exists = any(child["title"] == report_title for child in children)
+
+            if report_exists:
+                print(f"[INFO] Report '{report_title}' already exists.")
+                return
 
         # region create page
         create_kwargs = dict(
@@ -350,42 +348,29 @@ class ConfluenceReportGenerator:
         # endregion
 
         page_id = new_page["id"]
-        plots_dir = os.path.join(results_dir, "plots")
+        plots_dir = os.path.join(results_dir, self.plots_subdir)
 
-        plots_img = [
-            ("Fastest Methods", "fastest_high_profile_methods.png"),
-            ("Throughput Scaling", "scaling_fps.png"),
-            ("Latency Scaling", "scaling_timeperframe.png"),
-            ("CPU Usage Scaling", "scaling_cpu.png"),
-            ("Memory Usage Scaling", "scaling_memory.png"),
-            ("Grouped FPS Comparison (All Streams)", "grouped_barchart_fps.png"),
-            (
-                "Grouped Latency Comparison (All Streams)",
-                "grouped_barchart_timeperframe.png",
-            ),
-            (
-                "Grouped CPU Usage Comparison (All Streams)",
-                "grouped_barchart_cpu.png",
-            ),
-            (
-                "Grouped Memory Usage Comparison (All Streams)",
-                "grouped_barchart_memory.png",
-            ),
-        ]
+        all_files = []
+        all_files.extend(
+            self.__collect_files__(results_dir, self.detailed_report_plots)
+        )
+        all_files.extend(
+            self.__collect_files__(results_dir, self.detailed_report_vtune)
+        )
+        all_files.extend(self.__collect_files__(results_dir, self.additional_files))
+        all_files.extend(self.__collect_files__(results_dir, self.vtune_files))
+        all_files.extend(self.__collect_glob_files__(results_dir, self.glob_patterns))
 
-        file_list = self.__get_detailed_report_files__(results_dir, plots_img)
-        for fpath, fname in file_list:
-            self.confluence.attach_file(filename=fpath, page_id=page_id, name=fname)
+        for filepath, attachment_name, _ in all_files:
+            self.confluence.attach_file(
+                filename=filepath, page_id=page_id, name=attachment_name
+            )
 
         body = self.__generate_detailed_report_body__(
             plots_dir, page_id, git_commit_url=git_commit_url
         )
 
-        print(
-            "[DEBUG] Detailed report body being sent to Confluence:\n"
-            + body[:2000]
-            + ("..." if len(body) > 2000 else "")
-        )
+        print("[DEBUG] Detailed report body being sent to Confluence")
         self.__update_page__(page_id, report_title, body)
         print(f"[INFO] Created detailed report page '{report_title}' (id={page_id})")
 
@@ -400,21 +385,27 @@ class ConfluenceReportGenerator:
             raise Exception(f"Main dashboard page '{self.main_page_title}' not found.")
         dashboard_id = dashboard_page["id"]
 
-        files_to_attach = []
+        all_files = []
 
         for idx, results_dir in enumerate(results_dirs):
-            files_to_attach.extend(
-                self.__get_main_dashboard_files__(results_dir, prefix=f"run{idx}_")
+            prefix = f"run{idx}_"
+            all_files.extend(
+            self.__collect_files__(results_dir, self.main_dashboard_plots, prefix)
             )
+            all_files.extend(
+                self.__collect_files__(results_dir, self.detailed_report_vtune, prefix)
+            )
+            all_files.extend(self.__collect_files__(results_dir, self.additional_files, prefix))
+            all_files.extend(self.__collect_files__(results_dir, self.vtune_files, prefix))
 
-        for fpath, fname in files_to_attach:
+        for fpath, fname, _ in all_files:
             print(
                 f"[DEBUG] Attaching file: {fpath} as {fname} to dashboard {dashboard_id}"
             )
             self.confluence.attach_file(
                 filename=fpath, page_id=dashboard_id, name=fname
             )
-        time.sleep(5)
+        time.sleep(self.attachment_wait_time)
 
         body = self.__get_main_dashboard_body__(
             dashboard_id, results_dirs, git_commits, run_titles
@@ -425,9 +416,9 @@ class ConfluenceReportGenerator:
         print(f"[DEBUG] Dashboard page update complete.")
 
     def generate_report_title(self, directory):
-        m = re.search(r"(\d{8})_(\d{4})", os.path.basename(directory))
-        if m:
-            date_str = m.group(1)
-            time_str = m.group(2)
-            return f"Automated Report: {date_str[:4]}-{date_str[4:6]}-{date_str[6:]} {time_str[:2]}:{time_str[2:4]}:00"
-        return f"Automated Report: {os.path.basename(directory)}"
+        name = os.path.basename(directory.rstrip(os.sep))
+        match = re.search(r"(\d{8})_(\d{4})", name)
+        if match:
+            d, t = match.groups()
+            return f"Automated Report: {d[:4]}-{d[4:6]}-{d[6:]} {t[:2]}:{t[2:4]}:00"
+        return f"Automated Report: {name}"

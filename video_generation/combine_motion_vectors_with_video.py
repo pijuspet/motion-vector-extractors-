@@ -4,7 +4,7 @@ import sys
 from tqdm import tqdm
 from typing import List, Optional
 
-import motion_vector as mv
+import video_generation.motion_vector as mv
 
 
 def create_combined_video(

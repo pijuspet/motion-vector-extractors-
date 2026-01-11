@@ -128,7 +128,7 @@ class BenchmarkRunner:
 
     def generate_mv_comparison(self):
         method0_csv = self.results_dir / "method0_output_0.csv"
-        method6_csv = self.results_dir / "method6_output_0.csv"
+        method6_csv = self.results_dir / "method4_output_0.csv"
         mv_compare.compare(
             method0_csv,
             method6_csv,
@@ -138,15 +138,15 @@ class BenchmarkRunner:
         )
 
     def profiler(self):
-        print("Running VTune profiler on extractor6 with motion_vectors_only=1...")
+        print("Running VTune profiler on extractor4 with motion_vectors_only=1...")
 
         ffmpeg_lib = self.current_dir / "ffmpeg" / "ffmpeg-8.0-custom" / "lib"
         ld_library_path = f"{ffmpeg_lib}/libavutil:{ffmpeg_lib}/libavformat:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
         self.vtune_dir.mkdir(exist_ok=True)
 
-        extractor_exec = self.extractor_executables / "extractor6"
-        output_csv = self.results_dir / "method6_output_vtune.csv"
+        extractor_exec = self.extractor_executables / "extractor4"
+        output_csv = self.results_dir / "method4_output_vtune.csv"
 
         vtune_collect_cmd = f"{self.setvars_cmd} && vtune -collect hotspots -result-dir {self.vtune_dir} -- {extractor_exec} {self.video_file} 0 {output_csv}"
 

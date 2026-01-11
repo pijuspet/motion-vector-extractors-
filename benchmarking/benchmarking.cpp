@@ -38,11 +38,9 @@ std::vector<MethodInfo> methods = {
     {"Original FFmpeg MV extraction", "/extractors/executables/extractor0", "method0_output", 1}, // Original FFmpeg, takes out motion vectors out of video
     {"Same Code Not Patched", "/extractors/executables/extractor1", "method1_output", 1}, // Original FFmpeg, but custom flags are passed? ask Louise
     {"Custom FFmpeg MV-Only - FFMPEG Patched", "/extractors/executables/extractor2", "method2_output", 1}, // Custom FFmpeg RTSP protocol
-    {"Custom H.264 Parser", "/extractors/executables/extractor3", "method3_output", 0}, // no clue what was the intention of this (not going deeper)
-    {"LIVE555 Parser", "/extractors/executables/extractor4", "method4_output", 0}, // no clue what was the intention of this (not going deeper)
-    // {"FFMPEG decode frames", "/extractors/executables/extractor5", "method5_output", 1}, // why this one is used? produces no csv
-    {"Custom FFmpeg - Flush decoder", "/extractors/executables/extractor6", "method6_output", 1},
-    {"Custom FFmpeg", "/extractors/executables/extractor7", "method7_output", 1}
+    // {"FFMPEG decode frames", "/extractors/executables/extractor3", "method3_output", 1}, // why this one is used? produces no csv
+    {"Custom FFmpeg - Flush decoder", "/extractors/executables/extractor4", "method4_output", 1},
+    {"Custom FFmpeg", "/extractors/executables/extractor5", "method5_output", 1}
 };
 
 double now_ms() {

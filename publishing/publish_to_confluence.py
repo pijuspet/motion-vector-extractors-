@@ -8,7 +8,6 @@ import publishing.confluence_report_generator as conf
 
 
 def create_report(generator, directory, commit_url, latest=True):
-    print("[DEBUG DIRECTORY]", directory)
     if not os.path.isdir(directory):
         print(f"[ERROR] results directory does not exist: {directory}")
         return

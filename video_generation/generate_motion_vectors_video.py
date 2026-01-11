@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from tqdm import tqdm
 
-import motion_vector as mv
+import video_generation.motion_vector as mv
 
 
 def create_motion_vector_video(
